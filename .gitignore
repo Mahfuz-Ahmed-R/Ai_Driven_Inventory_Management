@@ -1,0 +1,10 @@
+# Secrets and credentials
+.env
+
+# Large datasets / archives
+*.zip
+
+# Python artifacts
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
