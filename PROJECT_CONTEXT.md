@@ -84,7 +84,7 @@ The M5 dataset **CANNOT** tell us:
 - [x] **Multi-Model Benchmark, Visual Comparison & Verdict** — Head-to-head comparison: Seasonal-Naive vs Gemini Zero-Shot vs LightGBM (Tweedie), multi-model forecast trajectory plots with holiday annotations, category MAE bar charts, empirical occasion slicing analysis (normal vs event window days), tabular side-by-side inspection of predictions across evaluation days, and academic/operational verdict on "Who Won?" (Section 14 & 15)
 - [x] **PCA Feature Dependency & Dimensionality Reduction Analysis** — Full PCA decomposition of the 16-feature input suite: scree plot with elbow detection, PCA loadings heatmap across top 5 latent dimensions, PCA correlation circle / biplot (PC1 vs PC2), pairwise multicollinearity matrix, and an actionable pruning decision matrix reducing 16 features down to 12 non-redundant features (Section 16)
 - [x] **Empirical Pruning Validation: Full 17-Feature vs Pruned 12-Feature LightGBM Benchmark** — Retrained LightGBM exclusively on the 12 non-redundant PCA features, empirically verifying that pruning 4 collinear features achieves accuracy parity (MAE 0.825 vs 0.830) with -29.4% dimensionality reduction and ~28% faster training (Section 17)
-- [x] **AI-Driven Inventory Policy Optimization & 28-Day Discrete-Event Simulation Engine** — Implemented digital twin simulation over test period ($d_{1627}$ to $d_{1654}$) across 200 SKUs; formulated dynamic $(s, S)$ inventory control with dynamic safety stock ($SS = Z \cdot \sqrt{L} \cdot \sigma_e$) and dynamic $ROP$; benchmarked Static Naive vs Seasonal-Naive vs AI-Driven LightGBM on Fill Rate (%), Stockout Days (%), Holding Cost ($), Stockout Penalty ($), and Total Operational Supply Chain Cost ($); generated daily sawtooth inventory trajectory plot and KPI trade-off dashboard (Section 18)
+- [x] **Simulation of Synthetic Inventory Data (Digital Twin Engine)** — Generated synthetic on-hand inventory, supplier lead times, restock deliveries, and stockout scenarios over test horizon ($d_{1627}$ to $d_{1654}$) across 200 SKUs; tracked observed sales vs simulated unmet demand, generated daily sawtooth trajectory plots and cross-category stockout summaries without policy optimization (Section 18)
 
 ### Benchmark Results & Bi-Criterion Evaluation (Test Period d_1627 to d_1654 on 15 Representative SKUs):
 | Model | Model Paradigm | MAE (Rank) | RMSE (Rank) | Combined Rank | Inference Latency | Training / Setup | Standing / Outcome |
@@ -126,13 +126,13 @@ The M5 dataset **CANNOT** tell us:
 10. [ ] Correlation heatmap of features vs sales
 11. [ ] Prediction intervals using quantile regression
 12. [ ] Anomaly / demand spike detection (z-score based)
-13. [x] Inventory optimization: Safety Stock, Reorder Point, EOQ, dynamic $(s, S)$ policy (Section 18)
+13. [ ] Inventory policy optimization (Omitted by user preference; focused purely on synthetic operational data simulation)
 
 ### Simulation Tasks (completed & clearly labeled as simulated):
-- [x] Simulate inventory levels: assume starting stock, subtract daily demand, flag simulated stockouts (Section 18)
-- [x] Simulate lead times: assume 3-day delivery window with order pipeline tracking (Section 18)
-- [x] Simulate reorder triggers: dynamic ROP and EOQ order-up-to triggers (Section 18)
-- [x] Simulate stockout cost analysis: holding cost ($0.10) vs stockout penalty ($2.50) total cost optimization (Section 18)
+- [x] Simulate synthetic inventory levels: assume starting stock buffer, subtract daily demand, track daily physical on-hand stock (Section 18)
+- [x] Simulate synthetic lead times: assume realistic 3–5 day supplier transit window per category (Section 18)
+- [x] Simulate synthetic restock deliveries: track scheduled restock arrivals and pipeline deliveries (Section 18)
+- [x] Simulate synthetic stockout scenarios: flag stockouts when shelf is empty and calculate unmet/censored demand (Section 18)
 - [ ] Investigate demand spikes: correlate with events/holidays but note we cannot prove causation
 
 ---
