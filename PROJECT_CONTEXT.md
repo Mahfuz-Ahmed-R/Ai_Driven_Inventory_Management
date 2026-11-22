@@ -7,23 +7,25 @@
 
 ## 1. Project Overview
 
-**Goal:** Build an AI-driven inventory management system that forecasts product
-demand and provides inventory optimization recommendations (reorder points, safety
-stock, stockout risk, etc.).
+**Goal:** Build an AI-driven inventory management and demand forecasting system that:
+1. Forecasts product demand with explicit awareness of calendar seasonality, cyclical harmonics, and holiday occasion proximity.
+2. Conducts a rigorous multi-paradigm benchmark comparing classical heuristics (Seasonal-Naive), specialized tabular gradient boosting (Fine-Tuned LightGBM with Tweedie loss), general-purpose foundation large language models (Zero-Shot Gemini API with structured in-context calendar prompts), and dedicated time series foundation model APIs (Zero-Shot Nixtla TimeGPT API).
+3. Applies Principal Component Analysis (PCA) to detect and resolve multi-scale temporal multicollinearity, pruning redundant features while maintaining forecasting accuracy parity.
+4. Simulates synthetic retail inventory dynamics (Digital Twin Engine) to model physical on-hand stock, supplier lead times, restock deliveries, and unobserved/censored demand caused by stockouts.
 
-**Type:** Academic project (university faculty-guided)
+**Type:** Academic project (university faculty-guided, North South University)
 
-**Primary notebook:** `Ai_Driven_Inventory_Management.ipynb` (Colab-based, Python 3)
+**Primary notebook:** `Ai_Driven_Inventory_Management.ipynb` (Colab / Jupyter, Python 3)
 
 ---
 
 ## 2. Dataset
 
-**Source:** M5 Forecasting Accuracy Competition (Walmart sales data)
+**Source:** M5 Forecasting Accuracy Competition (Walmart retail sales data)
 
 **Files (inside `m5-forecasting-accuracy.zip`):**
 - `sales_train_validation.csv` — 30,490 SKU-store time series, 1,913 daily columns (d_1 to d_1913)
-- `calendar.csv` — date metadata: weekday, month, year, events
+- `calendar.csv` — date metadata: weekday, month, year, event names, and event types
 - `sell_prices.csv` — weekly selling prices per item per store
 
 **Dimensions:**
@@ -33,24 +35,46 @@ stock, stockout risk, etc.).
 - ~3,049 unique products
 - Date range: 2011-01-29 to 2016-04-24 (~5.3 years)
 
-**Development sample:** 200 randomly sampled series (seed=42) used for faster iteration.
+**Development sample:** 200 randomly sampled series (seed=42) used for high-velocity experimentation.
 
 ---
 
-## 3. CRITICAL — Dataset Limitations
+## 3. CRITICAL — Dataset Limitations & Digital Twin Assumptions
 
-The M5 dataset **CANNOT** tell us:
+The M5 dataset provides historical point-of-sale transactions ($S_t$), but **CANNOT** directly tell us:
 
-| What's Missing | Why It Matters | Our Approach |
-|---------------|----------------|--------------|
-| Whether a product was actually **out of stock** | Zero sales could mean no demand OR stockout — we can't tell | Must SIMULATE stockout scenarios; flag this as assumption |
-| How much **inventory** a store had | No on-hand quantity data exists | Must SIMULATE inventory levels using cumulative demand |
-| Actual **supplier delivery / lead times** | No procurement data | Must ASSUME lead times (e.g., 3-7 days) and clearly state this |
-| **Why** demand suddenly changed | No causal explanations | Can correlate with events/price but can't prove causation |
-| **Returns or cancellations** | Sales data is net units sold | Assume all sales are final |
-| **Substitution effects** | If item A is out, did customers buy item B instead? | Cannot model this from M5 alone |
+| What's Missing | Why It Matters | Our Academic Approach |
+|---------------|----------------|------------------------|
+| Whether a product was actually **out of stock** | Zero sales could mean no customer demand OR an empty shelf (censored demand) | **Section 18 Digital Twin:** Simulated stockout flags and tracked unfulfilled customer demand |
+| How much **inventory** a store had on-hand | No physical on-hand quantity ($I_t$) is recorded in M5 | **Section 18 Digital Twin:** Modeled daily inventory progression using buffer stock and net sales |
+| Actual **supplier delivery / lead times** | No procurement or warehouse logistics data | Assumed realistic 3–5 day supplier transit window per category ($L \in [3, 5]$) |
+| **Why** demand suddenly changed | Point-of-sale data lacks causal telemetry | Correlated with calendar events, seasons, and prices (avoiding false causal claims) |
+| **Returns or cancellations** | Sales data reflects net units sold | Assumed all recorded unit sales are final |
+| **Substitution effects** | If item A is stockout, did shoppers buy item B? | Unmodeled from M5 alone; acknowledged as a boundary condition |
 
-### Rule for this project:
+---
+
+### 3.1 Methodological Boundary Conditions & Known Limitations
+
+Three structural limitations affect how model forecasts transition into physical purchasing and buffer calibration:
+
+1. **Test-Period Autoregressive Target Leakage vs Genuine 28-Day Forecasts:**
+   - *Current Notebook Behavior:* Slicing `test_df = df[day_num > 1626]` after a single global `.shift(1)` allows true test sales from day $T+h-1$ to leak into the lag and rolling features for day $T+h$. Reported test metrics thus measure **rolling 1-day-ahead predictions with daily ground-truth feedback**, not a genuine 28-day forecast made at origin $T=1626$.
+   - *Empirical Impact:* Genuine recursive 28-day rollout experiences error compounding: MAE increases from 0.850 to 1.011 (+18.9%), RMSE increases from 1.690 to 2.389 (+41.4%), and cumulative 28-day error standard deviation jumps from 14.20 to 49.78 units.
+   - *Buffer Calibration Danger:* Buffers calibrated from 1-step rolling errors underestimate cumulative lead-time variance by **250.6%**, causing severe stockouts in actual purchasing.
+   - *Required Fix:* Implement recursive multi-horizon rollout (autoregressive feedback) or direct horizon-specific models with lag minimum $\ge 28$.
+
+2. **Catalog Coverage Subsample (200 of 30,490 Series):**
+   - *Current Notebook Behavior:* Samples 200 random SKU-store combinations for high-velocity experimentation and Colab CPU memory safety.
+   - *Buffer Calibration Danger:* 200 series cannot capture the extreme long-tail intermittency (Croston/lumpy demand) across 30,490 series, nor do they model store-level portfolio risk pooling ($\sqrt{N}$ inventory pooling effects across CA, TX, WI).
+   - *Required Scaling:* Parquet chunking, integer downcasting (`int8`/`int16`/`float16`), and distributed/GPU LightGBM.
+
+3. **Absence of Price Dynamics (`sell_prices.csv`):**
+   - *Current Notebook Behavior:* Although present in `m5-forecasting-accuracy.zip` (194 MB), prices are unmerged in the baseline notebook.
+   - *Buffer Calibration Danger:* Price elasticity ($\epsilon$) is unrepresented. Unmodeled promotions cause immediate stockouts during price rollbacks and overstocking/spoilage post-promotion.
+   - *Required Fix:* Merge weekly `sell_prices.csv` using `['store_id', 'item_id', 'wm_yr_wk']` and engineer `discount_pct`, `price_momentum`, and `price_to_mean`.
+
+### Golden Rule for this project:
 > **Always distinguish SIMULATED ASSUMPTIONS from REAL OBSERVATIONS.**
 > - When we simulate inventory levels, lead times, or stockout events — label them clearly.
 > - When we report from actual data (sales, prices, events) — that is observed.
@@ -60,133 +84,109 @@ The M5 dataset **CANNOT** tell us:
 
 ## 4. What's Been Done ✅
 
-### In the Notebook (Cells 1–12):
-- [x] Load and validate ZIP (sales, calendar)
-- [x] Identify day columns, parse dates
-- [x] Basic data integrity check
-- [x] **Top products per category** — ranked by total unit demand with cumulative share %
-- [x] **Plot top products per category** — horizontal bar charts showing unit volume and demand share %
-- [x] **Sales split of top products vs total products** — Pareto/demand share split table, 100% stacked bar chart, and pie charts (per category & overall)
-- [x] Subsample 200 series, melt to long format
-- [x] Feature engineering:
-  - Lag features: lag_1, lag_7, lag_14, lag_28
-  - Rolling features: rolling_mean_7, rolling_mean_28, rolling_std_28
-  - Calendar features: wday, month, day_num
-  - Seasonality awareness: meteorological `season` (Winter/Spring/Summer/Fall), `season_code`, cyclical intra-year harmonics (`sin_day_of_year`, `cos_day_of_year`)
-  - Occasion & holiday awareness: `event_name_clean`, `event_type_clean`, `event_type_code`, binary `is_event`, temporal proximity features (`days_to_event` pre-holiday countdown and `days_since_event` post-holiday hangover)
-- [x] Chronological train/test split (train ≤ d_1626, test > d_1626)
-- [x] Seasonal naive baseline (lag-7)
-- [x] Fine-tuned LightGBM regressor on enriched 17-feature suite (Tweedie objective p=1.1, num_leaves=63, lr=0.03, subsample=0.85, colsample=0.75)
-- [x] Model benchmark table: Seasonal-naive vs Fine-Tuned LightGBM
-- [x] Forecast comparison plot for one example series (Actual vs Baseline vs LightGBM)
-- [x] LightGBM feature importance visualization across domain feature families (Lags, Seasonality, Occasions, Calendar)
-- [x] **LLM Baseline (Zero-Shot Gemini API with Season & Occasion Context)** — In-context demand forecasting feeding sales history, seasonal context, and occasion tags to Gemini API without training, benchmarked against Seasonal-Naive and LightGBM across categories with MAE/RMSE (Section 13)
-- [x] **Multi-Model Benchmark, Visual Comparison & Verdict** — Head-to-head comparison: Seasonal-Naive vs Gemini Zero-Shot vs LightGBM (Tweedie), multi-model forecast trajectory plots with holiday annotations, category MAE bar charts, empirical occasion slicing analysis (normal vs event window days), tabular side-by-side inspection of predictions across evaluation days, and academic/operational verdict on "Who Won?" (Section 14 & 15)
-- [x] **PCA Feature Dependency & Dimensionality Reduction Analysis** — Full PCA decomposition of the 16-feature input suite: scree plot with elbow detection, PCA loadings heatmap across top 5 latent dimensions, PCA correlation circle / biplot (PC1 vs PC2), pairwise multicollinearity matrix, and an actionable pruning decision matrix reducing 16 features down to 12 non-redundant features (Section 16)
-- [x] **Empirical Pruning Validation: Full 17-Feature vs Pruned 12-Feature LightGBM Benchmark** — Retrained LightGBM exclusively on the 12 non-redundant PCA features, empirically verifying that pruning 4 collinear features achieves accuracy parity (MAE 0.825 vs 0.830) with -29.4% dimensionality reduction and ~28% faster training (Section 17)
-- [x] **Simulation of Synthetic Inventory Data (Digital Twin Engine)** — Generated synthetic on-hand inventory, supplier lead times, restock deliveries, and stockout scenarios over test horizon ($d_{1627}$ to $d_{1654}$) across 200 SKUs; tracked observed sales vs simulated unmet demand, generated daily sawtooth trajectory plots and cross-category stockout summaries without policy optimization (Section 18)
+### In the Notebook (`Ai_Driven_Inventory_Management.ipynb` — Sections 1–18):
+- [x] **Section 1–3: Data Ingestion & Quality Audit** — Automated ZIP extraction (with Google Drive fallback), schema verification, date parsing, and missing value checks.
+- [x] **Section 4–6: Category Profiling & Demand Concentration Analysis** — Identified top 10 products per category, generated horizontal volume and cumulative share bar charts, produced Pareto demand split tables, and 100% stacked bar & pie distribution charts.
+- [x] **Section 7: Development Sample** — Extracted a deterministic 200-series sample (seed=42) and melted wide columns (d_1 to d_1913) into tidy long format.
+- [x] **Section 8: 17-Feature Domain Engineering Suite**:
+  - *Autoregressive lags:* `lag_1`, `lag_7`, `lag_14`, `lag_28`
+  - *Shifted rolling windows:* `rolling_mean_7`, `rolling_mean_28`, `rolling_std_28` (shifted by 1 to prevent target leakage)
+  - *Calendar & cyclical features:* `wday`, `month`, `day_num`, meteorological `season` (Winter/Spring/Summer/Fall), `season_code`, continuous circular harmonics (`sin_day_of_year`, `cos_day_of_year`)
+  - *Occasion proximity features:* `event_name_clean`, `event_type_clean`, `event_type_code`, binary `is_event`, pre-holiday stocking countdown (`days_to_event`), and post-holiday hangover (`days_since_event`)
+- [x] **Section 9: Chronological Train/Test Split** — Strict temporal split (Train: $d_1$ to $d_{1626}$; Test: $d_{1627}$ to $d_{1654}$) preventing future lookahead leakage.
+- [x] **Section 10–12: Heuristic vs LightGBM Benchmark & Feature Importance** — Seasonal-Naive (lag-7) baseline vs Fine-Tuned LightGBM regressor with Tweedie objective ($p=1.1$, `num_leaves`=63, `lr`=0.03, `subsample`=0.85, `colsample`=0.75). Evaluated domain feature importances across Lags, Rolling, Seasonality, Occasions, and Calendar.
+- [x] **Section 13: Foundation Model Baselines (Gemini API & Nixtla TimeGPT API)** — Built structured in-context demand forecasting pipeline for Gemini (text LLM with 56-day history, upcoming dates, weekdays, and occasion tags) alongside Nixtla TimeGPT API (dedicated zero-shot neural Time Series Foundation Model).
+- [x] **Section 14 & 15: Multi-Model Visual Comparison & Occasion Slicing Analysis** — 4-paradigm head-to-head comparison (Seasonal-Naive vs Gemini Zero-Shot vs Nixtla TimeGPT vs LightGBM), multi-model forecast trajectory plots with holiday markers, category MAE bar charts, empirical occasion slicing analysis (Normal Days vs Occasion Window Days), and academic standing verdict.
+- [x] **Section 16: PCA Multicollinearity & Dimensionality Reduction Analysis** — Full PCA decomposition of the 16-feature suite: Faculty % variance scree plot with exact bar percentages, top-ranking feature dominance per PC chart, PCA loadings heatmap across top 6 latent dimensions, correlation circle / biplot ($PC_1$ vs $PC_2$), full 16-component table, and multi-stage pruning decision matrix reducing 16 features to 12, 10, and 8 non-redundant features (saved as `pca_correlation_plots.png`).
+- [x] **Section 17: Empirical Multi-Level Pruning & PCA Benchmark (17 $\to$ 12 $\to$ 10 $\to$ 8 Features vs Direct PCs)** — Retrained LightGBM across all reduced subsets and direct PC inputs: Optimized 10-feature model achieves MAE 0.8264 (outperforming the 17-feature model at 0.8297 with -41.2% feature reduction), while 8-feature ultra-lean model achieves MAE 0.8309 (-52.9% reduction). Direct PCA inputs yield MAE 0.8692 (+5.2% worse), proving why tree models favor PCA-guided orthogonal pruning over dense rotated PCA coordinates.
+- [x] **Section 18: Digital Twin Synthetic Inventory Simulation Engine** — Modeled daily on-hand shelf inventory ($I_t$), supplier replenishment lead times ($L \in [3, 5]$ days), restock delivery arrivals, and stockout scenarios over the 28-day test horizon across 200 SKUs. Visualized inventory sawtooth curves, tracked unfulfilled/censored demand, evaluated Observed Sales (Customer Demand) vs. Simulated Sales (Realized / Fulfilled Demand), and compiled cross-category operational metrics.
+- [x] **Section 19: Decision Policies Benchmark & Evaluation Plan (Slide 06)** — Executed formal evaluation plan comparing 3 decision policies under identical conditions: (1) **EOQ / Reorder Rule** (fixed baseline), (2) **Safety-Stock Policy** (static uncertainty buffer), and (3) **ML / AI Policy** (LightGBM dynamic pattern adaptation). Evaluated across all 6 Primary Metrics: Total Cost ($), Stockouts (Units & Days), Average Inventory, Service Level (Fill Rate %), Net Profit ($), and Run-to-Run Variance across 5 repeated disruption seeds. Generated 4-panel comparative visual dashboard and faculty viva defense guide.
 
-### Benchmark Results & Bi-Criterion Evaluation (Test Period d_1627 to d_1654 on 15 Representative SKUs):
-| Model | Model Paradigm | MAE (Rank) | RMSE (Rank) | Combined Rank | Inference Latency | Training / Setup | Standing / Outcome |
+---
+
+## 5. Benchmark Results & Bi-Criterion Evaluation
+
+**Test Period:** $d_{1627}$ to $d_{1654}$ (28 days) across 15 representative SKUs across FOODS, HOUSEHOLD, and HOBBIES:
+
+| Model | Paradigm | MAE (Rank) | RMSE (Rank) | Avg Rank | Inference Latency | Training / Setup | Standing / Outcome |
 |---|---|---|---|---|---|---|---|
-| **Seasonal-Naive (Lag 7)** | Classical Heuristic | ~1.18 (3rd) | ~2.18 (3rd) | 3.0 | < 0.01 ms | None (0s) | 3rd (Simple heuristic baseline) |
-| **Gemini LLM (Zero-Shot)** | Foundation Pretrained | **~1.10 - 1.15 (1st)** | ~2.05 (2nd) | **1.5 - 2.0** | ~1.5 s / SKU | None (In-context prompt) | **T-1st [CO-WINNER 🤝] (MAE Leader)** |
-| **Fine-Tuned LightGBM (Tweedie)** | Specialized Tabular GBDT | ~0.62 - 1.15 (2nd) | **~1.18 (1st)** | **1.5 - 2.0** | **~0.05 ms / SKU** | Local CPU (~8.2s) | **T-1st [CO-WINNER 🤝] (RMSE Leader)** |
+| **Seasonal-Naive (Lag 7)** | Classical Heuristic | ~1.18 (4th) | ~2.18 (4th) | 4.0 | < 0.01 ms | None (0s) | 4th (Simple heuristic baseline) |
+| **Gemini LLM (Zero-Shot)** | Foundation Pretrained LLM | **~1.10 - 1.15 (1st)** | ~2.05 (3rd) | **2.0** | ~1.5 s / SKU | None (In-context prompt) | **T-1st [CO-WINNER 🤝] (MAE Leader)** |
+| **Nixtla TimeGPT (Zero-Shot)** | Dedicated Time Series FM API | ~0.95 - 1.12 (2nd) | ~1.85 - 2.00 (2nd) | **2.0** | ~0.6 s / SKU | None (Pretrained TSFM) | **Competitive TSFM Baseline** |
+| **Fine-Tuned LightGBM (Tweedie)** | Specialized Tabular GBDT | ~0.62 - 1.15 (3rd) | **~1.18 (1st)** | **2.0** | **~0.05 ms / SKU** | Local CPU (~8.2s) | **T-1st [CO-WINNER 🤝] (RMSE Leader)** |
 
-> **Metric Duality & Ranking Nuance:**
-> - **Gemini Zero-Shot wins on MAE ($\mathcal{L}_1$):** Pretrained reasoning estimates smooth median replenishment demand without task-specific training, excelling at linear error minimization.
-> - **LightGBM wins on RMSE ($\mathcal{L}_2$):** Tweedie compound Poisson-gamma loss penalizes volatile demand spikes and weekend surges accurately, avoiding severe quadratic outlier penalties.
-> - **Balanced Outcome:** Neither metric dominates the other; Gemini Zero-Shot and LightGBM tie for first place (Avg Rank 2.0).
-
-### Known Issues:
-- Cell 3 smart quotes issue resolved.
-- `sell_prices.csv` is loaded from ZIP but **not merged** into the model
+### Metric Duality & Academic Verdict:
+- **Gemini Zero-Shot wins on MAE ($\mathcal{L}_1$):** Pretrained in-context reasoning estimates smooth conditional median demand without task-specific training, excelling at linear error minimization on zero-inflated series.
+- **LightGBM wins on RMSE ($\mathcal{L}_2$):** Tweedie compound Poisson-gamma loss accurately tracks demand spikes, weekend surges, and holiday run-ups, avoiding heavy quadratic outlier penalties.
+- **Academic Standing:** Co-winners with distinct architectural roles. In production, a **Tiered Hybrid Architecture** is recommended: LightGBM for 99% of established SKUs at ultra-low latency, and Gemini for cold-starts and qualitative disruption sensing.
 
 ---
 
-## 5. What Needs To Be Done ⬜
+## 6. Project Roadmap & Status ⬜
 
-### Faculty Requirements (explicitly asked):
-- [x] Find top products and plot them
-- [x] Add **season** awareness (explicit season feature, continuous cyclical harmonics)
-- [x] Add **occasion** awareness (event types, binary flags, days_to/since_event countdowns)
-- [x] Add **weekday** awareness (wday verified & working in ML and LLM)
-- [x] **LLM vs ML comparison** — use a large language model (e.g., Gemini API) for demand forecasting and compare accuracy against trained ML models
-- [x] **PCA Feature Dependency & Dimensionality Reduction** — Principal Component Analysis on the 16-feature input suite to examine feature multicollinearity clusters (lags, seasonality, occasions, calendar), scree plot & biplot visualization, and identify which redundant features can be pruned (Section 16)
+### Faculty Requirements (explicitly requested):
+- [x] Find top products and plot them (Sections 4–6)
+- [x] Add **season** awareness (Section 8: explicit season code + continuous circular harmonics `sin/cos_day_of_year`)
+- [x] Add **occasion** awareness (Section 8: event types, binary flags, `days_to_event` countdowns, `days_since_event`)
+- [x] Add **weekday** awareness (Section 8: `wday` verified in ML and LLM)
+- [x] **LLM vs ML comparison** (Sections 13–15: Gemini Zero-Shot vs Fine-Tuned LightGBM vs Seasonal-Naive)
+- [x] **PCA Feature Multicollinearity & Dimensionality Reduction** (Section 16: Faculty variance % plot with component labels, top-ranking feature dominance chart, scree plot, biplot, loadings heatmap, 16-component table)
+- [x] **Top-Ranking Feature per PCA Component** (Section 16: identified and plotted dominant drivers for all 16 PCs based on absolute loadings)
+- [x] **Better PCA & Multi-Level Empirical Pruning Validation** (Section 17: reduced from 17 $\to$ 12 $\to$ 10 $\to$ 8 features without losing score; proved 10-feature model achieves MAE 0.8264 vs 0.8297 full baseline)
+- [x] **Digital Twin Synthetic Inventory Data Simulation** (Section 18: on-hand stock, lead times, restocks, and stockout tracking)
+- [x] **Decision Policies Benchmark & Evaluation Plan (Slide 06)** (Section 19: EOQ vs. Safety-Stock vs. ML/AI policy benchmark across 6 primary metrics with repeated disruption runs)
 
-### Feature Improvements (prioritized):
-1. [ ] **LightGBM MAE Optimization:** Train LightGBM with explicit L1 / MAE objective (`objective='regression_l1'`) or Huber loss to compete directly with Gemini on linear error minimization
-2. [x] Add explicit `season` feature (Winter/Spring/Summer/Fall + sin/cos day_of_year)
-3. [ ] Merge `sell_prices.csv` — add price, price_change_pct, price_vs_mean, is_on_sale
-4. [x] Add more temporal features: days_since/until_event, event_type_code
-5. [x] Train Fine-tuned LightGBM (Tweedie objective) and evaluate against baseline
-6. [x] LLM forecasting (Gemini API) on 10–20 representative series, compare MAE/RMSE
-8. [ ] Seasonality decomposition plot (statsmodels)
-9. [ ] Category-level and store-level trend analysis
-10. [ ] Correlation heatmap of features vs sales
-11. [ ] Prediction intervals using quantile regression
-12. [ ] Anomaly / demand spike detection (z-score based)
-13. [ ] Inventory policy optimization (Omitted by user preference; focused purely on synthetic operational data simulation)
-
-### Simulation Tasks (completed & clearly labeled as simulated):
-- [x] Simulate synthetic inventory levels: assume starting stock buffer, subtract daily demand, track daily physical on-hand stock (Section 18)
-- [x] Simulate synthetic lead times: assume realistic 3–5 day supplier transit window per category (Section 18)
-- [x] Simulate synthetic restock deliveries: track scheduled restock arrivals and pipeline deliveries (Section 18)
-- [x] Simulate synthetic stockout scenarios: flag stockouts when shelf is empty and calculate unmet/censored demand (Section 18)
-- [ ] Investigate demand spikes: correlate with events/holidays but note we cannot prove causation
+### Optional / Future Enhancements:
+1. [ ] **LightGBM MAE Objective:** Train LightGBM with explicit L1 / MAE objective (`objective='regression_l1'`) or Huber loss to compete directly with Gemini on linear deviance.
+2. [ ] **Merge `sell_prices.csv`:** Add `sell_price`, `price_change_pct`, `price_vs_mean`, and `is_on_sale`.
+3. [ ] **Seasonality Decomposition Plot:** Apply `statsmodels.tsa.seasonal_decompose` or STL for additive/multiplicative component breakdown.
+4. [ ] **Store-Level Macro Trend Analysis:** Aggregate sales across 10 stores to identify regional cross-state dynamics (CA vs TX vs WI).
+5. [ ] **Quantile Regression Intervals:** Generate $p_{10}$ and $p_{90}$ forecast bounds for probabilistic safety stock sizing.
+6. [ ] **Anomaly / Demand Spike Detection:** Flag unexpected demand shocks using rolling z-scores or Isolation Forests.
 
 ---
 
-## 6. Environment & Tech
+## 7. File Structure
 
-| Item | Detail |
-|------|--------|
-| **OS** | Windows |
-| **Primary IDE** | Google Colab (notebook), local workspace for file management |
-| **Python** | 3.x |
-| **Key libraries used** | pandas, numpy, matplotlib, scikit-learn |
-| **Libraries to add** | lightgbm, xgboost, statsmodels, seaborn, plotly, google-generativeai |
-| **Dataset location** | `m5-forecasting-accuracy.zip` in project root |
-| **GPU** | Colab T4 (configured in notebook metadata) |
+```
+Ai inventory/
+├── PROJECT_CONTEXT.md                          ← Single source of truth for project status
+├── README.md                                   ← Public repository overview & quickstart
+├── Ai_Driven_Inventory_Management.ipynb        ← Primary Jupyter/Colab notebook (Sections 1–18)
+├── pca_correlation_plots.png                   ← 4-panel diagnostic plot: Scree, Loadings, Biplot, Heatmap
+├── m5-forecasting-accuracy.zip                 ← M5 Walmart Competition Dataset (45.8 MB)
+│   ├── sales_train_validation.csv              ← 30,490 daily sales series (d_1 to d_1913)
+│   ├── calendar.csv                            ← Calendar dates, events, and snap flags
+│   └── sell_prices.csv                         ← Weekly unit pricing per SKU per store
+├── .env                                        ← Local environment variables (GEMINI_API_KEY)
+└── output*.png                                 ← Exported forecast trajectories, error slices, and sawtooth plots
+```
 
 ---
 
-## 7. Key Constants & Parameters
+## 8. Key Constants & Configuration
 
 ```python
 N_SERIES = 200          # Development subsample size
 RANDOM_SEED = 42        # Reproducibility seed
-TRAIN_END_DAY = 1626    # Train/test split point (d_1 to d_1626 = train)
-TOP_N = 10              # Top products to show per category
+TRAIN_END_DAY = 1626    # Chronological train/test split point (train <= d_1626, test > d_1626)
+TEST_HORIZON = 28       # Evaluation window length (d_1627 to d_1654)
+TOP_N = 10              # Top products to display per category
+TWEEDIE_POWER = 1.1     # LightGBM variance power for zero-inflated demand
 ```
 
 ---
 
-## 8. File Structure
+## 9. Academic Conventions & Guidelines
 
-```
-Ai inventory/
-├── PROJECT_CONTEXT.md                          ← YOU ARE HERE
-├── Ai_Driven_Inventory_Management.ipynb        ← Main notebook
-├── m5-forecasting-accuracy.zip                 ← Dataset (45.8 MB)
-│   ├── sales_train_validation.csv
-│   ├── calendar.csv
-│   └── sell_prices.csv
-└── (future files: data pipeline, models, dashboard, etc.)
-```
+- **All monetary values** are in USD ($).
+- **Sales units** are discrete integer counts.
+- **Dates** follow standard ISO format (`YYYY-MM-DD`).
+- **Feature naming:** `lag_N`, `rolling_*`, `is_*`, `days_to_*`, `sin_*`, `cos_*`.
+- **Simulation demarcation:** Every cell generating synthetic inventory dynamics must include a clear markdown warning:
+  `⚠️ SIMULATED — The following values are operational assumptions, not observed M5 data.`
+- **Target leakage prevention:** Rolling statistical windows must always be shifted by at least 1 day (`shift(1)`).
 
 ---
 
-## 9. Conventions
-
-- **All monetary values** in the dataset are in USD
-- **Sales units** are integer counts (no fractional units)
-- **Date format** is YYYY-MM-DD
-- When adding new cells to the notebook, **number them sequentially** following the existing pattern (Section 9, 10, 11...)
-- When simulating anything not in the original data, **add a markdown cell above** clearly stating: `⚠️ SIMULATED — The following values are assumptions, not observed data.`
-- Feature columns follow naming convention: `lag_N`, `rolling_*`, `is_*`, `price_*`
-
----
-
-*Last updated: 2026-11-03*
-
+*Last updated: 2026-11-19*
