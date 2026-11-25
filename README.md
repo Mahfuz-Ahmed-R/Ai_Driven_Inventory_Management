@@ -27,6 +27,9 @@ This project integrates domain-aware feature engineering (meteorological seasons
    - Bridges M5's data limitation (unobserved shelf inventory, unrecorded stockouts, and lead times).
    - Explicitly simulates daily physical on-hand inventory ($I_t$), supplier replenishment transit windows ($L \in [3, 5]$ days), restock delivery arrivals, and unfulfilled customer demand (censored demand) during stockout events.
 
+5. **Decision Policies Benchmark (Section 19):**
+   - Benchmarks three inventory replenishment policies (**EOQ / Reorder Rule**, **Safety-Stock Policy**, and **ML / AI Policy**) under identical conditions across 6 primary metrics: Total Cost ($), Stockouts (Units & Days), Average Inventory, Service Level (Fill Rate %), Net Profit ($), and Run-to-Run Variance across 5 repeated disruption seeds.
+
 ---
 
 ## 📊 Benchmark Scorecard
@@ -50,7 +53,7 @@ Evaluated over a 28-day holdout test horizon ($d_{1627}$ to $d_{1654}$) across 1
 Ai inventory/
 ├── PROJECT_CONTEXT.md              # Project single source of truth and active state
 ├── README.md                       # Repository overview and setup guide
-├── Ai_Driven_Inventory_Management.ipynb  # Main Jupyter notebook (Sections 1–18)
+├── Ai_Driven_Inventory_Management.ipynb  # Main Jupyter notebook (Sections 1–19)
 ├── pca_correlation_plots.png       # Scree plot, loadings heatmap, biplot & correlation matrix
 ├── m5-forecasting-accuracy.zip     # Walmart M5 dataset (sales, calendar, sell_prices)
 ├── .env                            # API credentials (GEMINI_API_KEY)

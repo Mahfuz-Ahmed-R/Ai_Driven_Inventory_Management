@@ -152,7 +152,7 @@ Three structural limitations affect how model forecasts transition into physical
 Ai inventory/
 ├── PROJECT_CONTEXT.md                          ← Single source of truth for project status
 ├── README.md                                   ← Public repository overview & quickstart
-├── Ai_Driven_Inventory_Management.ipynb        ← Primary Jupyter/Colab notebook (Sections 1–18)
+├── Ai_Driven_Inventory_Management.ipynb        ← Primary Jupyter/Colab notebook (Sections 1–19)
 ├── pca_correlation_plots.png                   ← 4-panel diagnostic plot: Scree, Loadings, Biplot, Heatmap
 ├── m5-forecasting-accuracy.zip                 ← M5 Walmart Competition Dataset (45.8 MB)
 │   ├── sales_train_validation.csv              ← 30,490 daily sales series (d_1 to d_1913)
