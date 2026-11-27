@@ -119,7 +119,7 @@ def register_view(request):
             is_active=False,  # Activated after Email OTP verification
         )
 
-    if os.getenv("AUTO_VERIFY_REGISTRATION", "False").lower() == "true":
+    if os.getenv("AUTO_VERIFY_REGISTRATION", "True").lower() == "true":
         if not user.is_active:
             user.is_active = True
             user.save(update_fields=["is_active"])
@@ -165,18 +165,22 @@ def login_view(request):
         u_obj = User.objects.filter(email__iexact=identifier).first()
         if u_obj:
             if not u_obj.is_active and u_obj.check_password(password):
-                otp = issue_email_otp(u_obj.email, "register")
-                resp = {
-                    "error": "Account not verified yet. A new verification code has been sent to your email.",
-                    "requires_otp": True,
-                    "purpose": "register",
-                    "email": u_obj.email,
-                    "otp_length": 6,
-                    "cooldown_seconds": OTP_RESEND_COOLDOWN_SECONDS,
-                }
-                if settings.DEBUG:
-                    resp["dev_otp"] = otp.code
-                return Response(resp, status=status.HTTP_403_FORBIDDEN)
+                if os.getenv("AUTO_VERIFY_REGISTRATION", "True").lower() == "true":
+                    u_obj.is_active = True
+                    u_obj.save(update_fields=["is_active"])
+                else:
+                    otp = issue_email_otp(u_obj.email, "register")
+                    resp = {
+                        "error": "Account not verified yet. A new verification code has been sent to your email.",
+                        "requires_otp": True,
+                        "purpose": "register",
+                        "email": u_obj.email,
+                        "otp_length": 6,
+                        "cooldown_seconds": OTP_RESEND_COOLDOWN_SECONDS,
+                    }
+                    if settings.DEBUG:
+                        resp["dev_otp"] = otp.code
+                    return Response(resp, status=status.HTTP_403_FORBIDDEN)
             user = authenticate(username=u_obj.username, password=password)
 
     if not user:
