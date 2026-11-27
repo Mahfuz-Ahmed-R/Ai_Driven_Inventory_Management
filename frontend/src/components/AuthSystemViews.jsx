@@ -712,6 +712,12 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
         return;
       }
 
+      if (data.requires_otp === false && data.access) {
+        setStatusMsg(`Signed in as ${data.user?.email || trimmedEmail}`);
+        if (onAuthSuccess) onAuthSuccess(data);
+        return;
+      }
+
       setOtpPurpose("register");
       setResendCooldown(data.cooldown_seconds || 30);
       setStatusMsg(data.message || `Verification code sent to ${trimmedEmail}.`);

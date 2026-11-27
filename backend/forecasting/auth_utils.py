@@ -5,6 +5,7 @@ import json
 import os
 import secrets
 import time
+import urllib.request
 import uuid
 from datetime import timedelta
 from functools import wraps
@@ -129,6 +130,76 @@ def otp_resend_wait_seconds(email: str, purpose: str) -> int:
     return max(0, remaining)
 
 
+def _send_otp_email(recipient: str, code: str, purpose: str) -> bool:
+    """Send OTP via HTTPS email API (Resend/Brevo) or SMTP; return True on delivery."""
+    subject = f"Inventory Planner Verification Code: {code}"
+    body = f"Your Inventory Planner verification code is {code}. It expires in {OTP_TTL_MINUTES} minutes."
+    from_email = os.getenv("DEFAULT_FROM_EMAIL", "Inventory Planner <noreply@inventoryplanner.local>")
+
+    resend_key = os.getenv("RESEND_API_KEY", "").strip()
+    if resend_key:
+        try:
+            req = urllib.request.Request(
+                "https://api.resend.com/emails",
+                data=json.dumps({
+                    "from": from_email,
+                    "to": [recipient],
+                    "subject": subject,
+                    "text": body,
+                }).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if 200 <= resp.status < 300:
+                    return True
+        except Exception as exc:
+            print(f"[OTP-EMAIL] Resend failed for {recipient}: {exc}", flush=True)
+
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip()
+    if brevo_key:
+        try:
+            sender_email = os.getenv("EMAIL_HOST_USER", "").strip() or from_email
+            req = urllib.request.Request(
+                "https://api.brevo.com/v3/smtp/email",
+                data=json.dumps({
+                    "sender": {"name": "Inventory Planner", "email": sender_email},
+                    "to": [{"email": recipient}],
+                    "subject": subject,
+                    "textContent": body,
+                }).encode("utf-8"),
+                headers={
+                    "api-key": brevo_key,
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if 200 <= resp.status < 300:
+                    return True
+        except Exception as exc:
+            print(f"[OTP-EMAIL] Brevo failed for {recipient}: {exc}", flush=True)
+
+    if os.getenv("EMAIL_HOST"):
+        try:
+            send_mail(
+                subject=subject,
+                message=body,
+                from_email=from_email,
+                recipient_list=[recipient],
+                fail_silently=False,
+            )
+            return True
+        except Exception as exc:
+            print(f"[OTP-EMAIL] SMTP failed for {recipient}: {exc}", flush=True)
+
+    print(f"[OTP-FALLBACK] email={recipient} purpose={purpose} code={code}", flush=True)
+    return False
+
+
 def issue_email_otp(email: str, purpose: str) -> EmailOTP:
     normalized = email.strip().lower()
     EmailOTP.objects.filter(email=normalized, purpose=purpose, is_used=False).update(is_used=True)
@@ -139,17 +210,7 @@ def issue_email_otp(email: str, purpose: str) -> EmailOTP:
         purpose=purpose,
         expires_at=timezone.now() + timedelta(minutes=OTP_TTL_MINUTES),
     )
-    if os.getenv("EMAIL_HOST"):
-        try:
-            send_mail(
-                subject=f"Inventory Planner Verification Code: {code}",
-                message=f"Your Inventory Planner verification code is {code}. It expires in {OTP_TTL_MINUTES} minutes.",
-                from_email=os.getenv("DEFAULT_FROM_EMAIL", "Inventory Planner <noreply@inventoryplanner.local>"),
-                recipient_list=[normalized],
-                fail_silently=True,
-            )
-        except Exception:
-            pass
+    _send_otp_email(normalized, code, purpose)
     return otp
 
 

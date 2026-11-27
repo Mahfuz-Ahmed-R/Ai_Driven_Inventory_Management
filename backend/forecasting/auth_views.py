@@ -119,6 +119,21 @@ def register_view(request):
             is_active=False,  # Activated after Email OTP verification
         )
 
+    if os.getenv("AUTO_VERIFY_REGISTRATION", "False").lower() == "true":
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=["is_active"])
+        session, access, refresh = create_session_and_tokens(user, request, remember_me=True)
+        return Response({
+            "ok": True,
+            "requires_otp": False,
+            "message": "Account created and signed in.",
+            "access": access,
+            "refresh": refresh,
+            "session_id": str(session.id),
+            "user": _serialize_user(user),
+        }, status=status.HTTP_201_CREATED)
+
     otp = issue_email_otp(email, "register")
     payload = {
         "ok": True,
