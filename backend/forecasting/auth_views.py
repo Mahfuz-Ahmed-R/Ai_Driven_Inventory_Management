@@ -7,6 +7,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.shortcuts import get_object_or_404
@@ -32,12 +33,28 @@ from .auth_utils import (
 from .models import UserSession
 
 
-def _validate_password_strength(password: str) -> str | None:
+def _validate_password_strength(password: str, user: User | None = None) -> str | None:
     if len(password) < 8:
         return "Password must be at least 8 characters."
     if not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
         return "Password must include at least one letter and one number."
+    try:
+        validate_password(password, user=user)
+    except DjangoValidationError as exc:
+        return exc.messages[0] if exc.messages else "Password does not meet security requirements."
     return None
+
+
+def _parse_bool(value, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no", ""}:
+            return False
+    return default
 
 
 def _is_valid_email(email: str) -> bool:
@@ -101,7 +118,11 @@ def register_view(request):
         )
 
     if existing and not existing.is_active:
+        pw_existing_err = _validate_password_strength(password, user=existing)
+        if pw_existing_err:
+            return Response({"error": pw_existing_err, "field_errors": {"password": pw_existing_err}}, status=status.HTTP_400_BAD_REQUEST)
         existing.first_name = name[:150]
+        validate_password(password, user=existing)
         existing.set_password(password)
         existing.save()
         user = existing
@@ -155,8 +176,8 @@ def register_view(request):
 def login_view(request):
     identifier = (request.data.get("email") or request.data.get("username") or "").strip()
     password = request.data.get("password") or ""
-    require_two_step = bool(request.data.get("two_step", False))
-    remember_me = bool(request.data.get("remember_me", True))
+    require_two_step = _parse_bool(request.data.get("two_step"), default=False)
+    remember_me = _parse_bool(request.data.get("remember_me"), default=True)
 
     if not identifier or not password:
         return Response({"error": "Email/username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -336,6 +357,10 @@ def reset_password_view(request):
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     user = get_object_or_404(User, id=payload.get("uid"))
+    pw_err = _validate_password_strength(new_password, user=user)
+    if pw_err:
+        return Response({"error": pw_err}, status=status.HTTP_400_BAD_REQUEST)
+    validate_password(new_password, user=user)
     user.set_password(new_password)
     user.is_active = True
     user.save()

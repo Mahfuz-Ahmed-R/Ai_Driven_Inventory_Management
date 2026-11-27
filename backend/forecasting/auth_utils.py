@@ -5,10 +5,11 @@ import json
 import os
 import secrets
 import time
-import urllib.request
 import uuid
 from datetime import timedelta
 from functools import wraps
+
+import requests
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -139,23 +140,22 @@ def _send_otp_email(recipient: str, code: str, purpose: str) -> bool:
     resend_key = os.getenv("RESEND_API_KEY", "").strip()
     if resend_key:
         try:
-            req = urllib.request.Request(
+            resp = requests.post(
                 "https://api.resend.com/emails",
-                data=json.dumps({
+                json={
                     "from": from_email,
                     "to": [recipient],
                     "subject": subject,
                     "text": body,
-                }).encode("utf-8"),
+                },
                 headers={
                     "Authorization": f"Bearer {resend_key}",
                     "Content-Type": "application/json",
                 },
-                method="POST",
+                timeout=8,
             )
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                if 200 <= resp.status < 300:
-                    return True
+            if 200 <= resp.status_code < 300:
+                return True
         except Exception as exc:
             print(f"[OTP-EMAIL] Resend failed for {recipient}: {exc}", flush=True)
 
@@ -163,23 +163,22 @@ def _send_otp_email(recipient: str, code: str, purpose: str) -> bool:
     if brevo_key:
         try:
             sender_email = os.getenv("EMAIL_HOST_USER", "").strip() or from_email
-            req = urllib.request.Request(
+            resp = requests.post(
                 "https://api.brevo.com/v3/smtp/email",
-                data=json.dumps({
+                json={
                     "sender": {"name": "Inventory Planner", "email": sender_email},
                     "to": [{"email": recipient}],
                     "subject": subject,
                     "textContent": body,
-                }).encode("utf-8"),
+                },
                 headers={
                     "api-key": brevo_key,
                     "Content-Type": "application/json",
                 },
-                method="POST",
+                timeout=8,
             )
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                if 200 <= resp.status < 300:
-                    return True
+            if 200 <= resp.status_code < 300:
+                return True
         except Exception as exc:
             print(f"[OTP-EMAIL] Brevo failed for {recipient}: {exc}", flush=True)
 

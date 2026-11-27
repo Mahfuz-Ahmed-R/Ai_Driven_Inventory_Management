@@ -21,7 +21,7 @@ export function logClientError(context, error, meta = {}) {
     // ignore storage quota errors
   }
   if (import.meta.env.DEV) {
-    console.error(`[DreamsAI:${context}]`, error, meta);
+    console.error("[DreamsAI]", String(context), error, meta);
   }
   return entry;
 }
