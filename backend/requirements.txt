@@ -1,0 +1,17 @@
+django>=5.1,<6.0
+djangorestframework>=3.15
+django-cors-headers>=4.4
+channels>=4.1
+channels-redis>=4.2
+daphne>=4.1
+psycopg[binary]>=3.2
+dj-database-url>=2.2
+whitenoise>=6.7
+python-dotenv>=1.0
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.5
+lightgbm>=4.5
+google-genai>=1.0
+holidays>=0.58
+fpdf2>=2.8

@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg-canvas: #f7f6f2;
+  --bg-surface: #ffffff;
+  --bg-subtle: #efede7;
+  --border-hairline: #e5e3dc;
+  --accent-primary: #0f766e;
+  --accent-primary-hover: #115e59;
+  --accent-warm: #b45309;
+  --tooltip-bg: #ffffff;
+  --tooltip-border: #e5e3dc;
+  --tooltip-text: #18181b;
+  --tooltip-label: #52525b;
+  --cursor-fill: rgba(15, 118, 110, 0.05);
+  --cursor-stroke: #a1a1aa;
+}
+
+html.dark {
+  --bg-canvas: #111318;
+  --bg-surface: #181b22;
+  --bg-subtle: #1e222b;
+  --border-hairline: #262a34;
+  --accent-primary: #14b8a6;
+  --accent-primary-hover: #0d9488;
+  --accent-warm: #d97706;
+  --tooltip-bg: #181b22;
+  --tooltip-border: #262a34;
+  --tooltip-text: #f4f4f5;
+  --tooltip-label: #a1a1aa;
+  --cursor-fill: rgba(20, 184, 166, 0.08);
+  --cursor-stroke: #52525b;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: #f4f4f5;
+  overflow-x: clip;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+html:not(.dark) body {
+  background-color: var(--bg-canvas);
+  color: #18181b;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Accessible keyboard focus ring */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.recharts-default-tooltip {
+  background-color: var(--tooltip-bg) !important;
+  border: 1px solid var(--tooltip-border) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.16) !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+}
+
+.recharts-tooltip-label {
+  color: var(--tooltip-label) !important;
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+}
+
+.recharts-tooltip-item {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes subtleFloat {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-fade-slide-up {
+  animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-modal-pop {
+  animation: modalPop 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-subtle-float {
+  animation: subtleFloat 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-slide-up,
+  .animate-modal-pop,
+  .animate-subtle-float {
+    animation: none !important;
+  }
+}

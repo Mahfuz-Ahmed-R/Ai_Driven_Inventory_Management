@@ -1,0 +1,61 @@
+from django.urls import path
+from . import views, erp_views, auth_views, saas_views, ingestion_views
+
+urlpatterns = [
+    path("health/", views.health_check, name="health_check"),
+    path("sample-csv/", views.download_sample_csv, name="download_sample_csv"),
+    path("uploads/", views.upload_csv, name="upload_csv"),
+    path("ingestion/upload/", ingestion_views.inspect_uploaded_csv, name="ingestion_upload"),
+    path("ingestion/<uuid:dataset_id>/validate/", ingestion_views.revalidate_dataset_mapping, name="ingestion_validate"),
+    path("ingestion/<uuid:dataset_id>/confirm/", ingestion_views.confirm_and_run_forecast, name="ingestion_confirm"),
+    path("jobs/", views.list_jobs, name="list_jobs"),
+    path("jobs/bulk-delete/", saas_views.bulk_jobs_delete_view, name="bulk_jobs_delete"),
+    path("jobs/<uuid:job_id>/", views.job_detail, name="job_detail"),
+    path("jobs/<uuid:job_id>/pdf/", views.download_pdf_report, name="download_pdf_report"),
+    path("jobs/<uuid:job_id>/export-csv/", views.export_forecast_csv, name="export_forecast_csv"),
+
+    # SaaS Tiers, Onboarding, Referrals & Bulk Actions
+    path("saas/state/", saas_views.saas_state_view, name="saas_state"),
+    path("saas/upgrade/", saas_views.saas_upgrade_view, name="saas_upgrade"),
+    path("saas/onboarding/", saas_views.saas_onboarding_view, name="saas_onboarding"),
+    path("saas/referrals/", saas_views.saas_referrals_view, name="saas_referrals"),
+    path("saas/referrals/track/", saas_views.saas_referrals_track_view, name="saas_referrals_track"),
+    path("erp/products/bulk/", saas_views.bulk_products_action_view, name="erp_products_bulk"),
+
+    # Authentication, JWT, Session, OTP & Password Reset
+    path("auth/register/", auth_views.register_view, name="auth_register"),
+    path("auth/login/", auth_views.login_view, name="auth_login"),
+    path("auth/send-otp/", auth_views.send_otp_view, name="auth_send_otp"),
+    path("auth/verify-otp/", auth_views.verify_otp_view, name="auth_verify_otp"),
+    path("auth/forgot-password/", auth_views.forgot_password_view, name="auth_forgot_password"),
+    path("auth/reset-password/", auth_views.reset_password_view, name="auth_reset_password"),
+    path("auth/refresh/", auth_views.refresh_token_view, name="auth_refresh"),
+    path("auth/me/", auth_views.me_view, name="auth_me"),
+    path("auth/logout/", auth_views.logout_view, name="auth_logout"),
+    path("auth/unlock/", auth_views.unlock_session_view, name="auth_unlock"),
+    path("auth/sessions/", auth_views.sessions_list_view, name="auth_sessions"),
+    path("auth/sessions/<uuid:session_id>/", auth_views.session_revoke_view, name="auth_session_revoke"),
+
+    # Dynamic ERP & POS Database Endpoints
+    path("erp/bootstrap/", erp_views.erp_bootstrap, name="erp_bootstrap"),
+    path("erp/products/", erp_views.products_list_create, name="erp_products"),
+    path("erp/products/<str:sku>/", erp_views.product_detail, name="erp_product_detail"),
+    path("erp/categories/", erp_views.categories_view, name="erp_categories"),
+    path("erp/categories/<int:pk>/", erp_views.category_delete, name="erp_category_delete"),
+    path("erp/sub-categories/", erp_views.sub_categories_view, name="erp_sub_categories"),
+    path("erp/brands/", erp_views.brands_view, name="erp_brands"),
+    path("erp/brands/<int:pk>/", erp_views.brand_delete, name="erp_brand_delete"),
+    path("erp/units/", erp_views.units_view, name="erp_units"),
+    path("erp/variants/", erp_views.variants_view, name="erp_variants"),
+    path("erp/warranties/", erp_views.warranties_view, name="erp_warranties"),
+    path("erp/warehouses/", erp_views.warehouses_view, name="erp_warehouses"),
+    path("erp/stores/", erp_views.stores_view, name="erp_stores"),
+    path("erp/customers/", erp_views.customers_view, name="erp_customers"),
+    path("erp/billers/", erp_views.billers_view, name="erp_billers"),
+    path("erp/suppliers/", erp_views.suppliers_view, name="erp_suppliers"),
+    path("erp/transfers/", erp_views.transfers_view, name="erp_transfers"),
+    path("erp/adjustments/", erp_views.adjustments_view, name="erp_adjustments"),
+    path("erp/pos-orders/", erp_views.pos_orders_view, name="erp_pos_orders"),
+    path("erp/auth/login/", erp_views.auth_login_view, name="erp_auth_login"),
+    path("erp/auth/register/", erp_views.auth_register_view, name="erp_auth_register"),
+]
