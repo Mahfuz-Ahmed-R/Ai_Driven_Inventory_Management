@@ -56,6 +56,4 @@ urlpatterns = [
     path("erp/transfers/", erp_views.transfers_view, name="erp_transfers"),
     path("erp/adjustments/", erp_views.adjustments_view, name="erp_adjustments"),
     path("erp/pos-orders/", erp_views.pos_orders_view, name="erp_pos_orders"),
-    path("erp/auth/login/", erp_views.auth_login_view, name="erp_auth_login"),
-    path("erp/auth/register/", erp_views.auth_register_view, name="erp_auth_register"),
 ]

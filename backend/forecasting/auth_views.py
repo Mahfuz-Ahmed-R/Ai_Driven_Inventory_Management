@@ -120,7 +120,7 @@ def register_view(request):
             is_active=False,  # Activated after Email OTP verification
         )
 
-    if os.getenv("AUTO_VERIFY_REGISTRATION", "True").lower() == "true":
+    if os.getenv("AUTO_VERIFY_REGISTRATION", "False").lower() == "true":
         if not user.is_active:
             user.is_active = True
             user.save(update_fields=["is_active"])
@@ -166,7 +166,7 @@ def login_view(request):
         u_obj = User.objects.filter(email__iexact=identifier).first()
         if u_obj:
             if not u_obj.is_active and u_obj.check_password(password):
-                if os.getenv("AUTO_VERIFY_REGISTRATION", "True").lower() == "true":
+                if os.getenv("AUTO_VERIFY_REGISTRATION", "False").lower() == "true":
                     u_obj.is_active = True
                     u_obj.save(update_fields=["is_active"])
                 else:

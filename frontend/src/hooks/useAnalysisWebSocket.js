@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getStoredTokens } from "./useAuth";
 
 export function useAnalysisWebSocket(jobId, onComplete) {
   const [events, setEvents] = useState([]);
@@ -17,7 +18,9 @@ export function useAnalysisWebSocket(jobId, onComplete) {
     setError("");
 
     const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${proto}//${window.location.host}/ws/analysis/${jobId}/`;
+    const { access } = getStoredTokens();
+    const tokenParam = access ? `?token=${encodeURIComponent(access)}` : "";
+    const wsUrl = `${proto}//${window.location.host}/ws/analysis/${jobId}/${tokenParam}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 

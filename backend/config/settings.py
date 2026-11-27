@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -17,7 +18,14 @@ load_dotenv(ROOT_DIR / ".env")
 IS_RENDER = bool(os.getenv("RENDER"))
 RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-ai-inventory-secret-key-change-in-prod")
+_env_secret_key = os.getenv("DJANGO_SECRET_KEY", "").strip()
+if _env_secret_key:
+    SECRET_KEY = _env_secret_key
+elif IS_RENDER:
+    raise RuntimeError("DJANGO_SECRET_KEY must be set in production.")
+else:
+    SECRET_KEY = secrets.token_urlsafe(48)
+
 DEBUG = os.getenv("DEBUG", "False" if IS_RENDER else "True").lower() == "true"
 
 _env_hosts = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "").split(",") if h.strip()]
@@ -26,7 +34,7 @@ if _env_hosts:
 elif IS_RENDER:
     ALLOWED_HOSTS = [RENDER_EXTERNAL_HOSTNAME, ".onrender.com"] if RENDER_EXTERNAL_HOSTNAME else [".onrender.com"]
 else:
-    ALLOWED_HOSTS = ["*"]
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
 
 if RENDER_EXTERNAL_HOSTNAME and RENDER_EXTERNAL_HOSTNAME not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
@@ -40,6 +48,13 @@ if RENDER_EXTERNAL_HOSTNAME:
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     USE_X_FORWARDED_HOST = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True").lower() == "true"
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 INSTALLED_APPS = [
     "daphne",
@@ -137,9 +152,17 @@ else:
 _cors_origins = [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
 if _cors_origins:
     CORS_ALLOWED_ORIGINS = _cors_origins
-    CORS_ALLOW_ALL_ORIGINS = False
+elif DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
 else:
-    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOWED_ORIGINS = []
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],

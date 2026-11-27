@@ -11,6 +11,7 @@ from .auth_utils import require_auth
 from .models import AnalysisJob
 from .pipeline_runner import launch_analysis_thread
 from .saas_views import TIER_CONFIGS, get_active_workspace_profile
+from ml_engine.ingestion.upload_service import CSVUploadService, MAX_CSV_SIZE_BYTES
 from ml_engine.validator import generate_sample_csv_bytes
 from ml_engine.pdf_report import build_pdf_report
 
@@ -105,8 +106,13 @@ def upload_csv(request):
     if not uploaded:
         return Response({"error": "No CSV file uploaded under 'file'."}, status=status.HTTP_400_BAD_REQUEST)
 
-    from .saas_views import get_active_workspace_profile
-    profile = get_active_workspace_profile(request)
+    safe_name = CSVUploadService.sanitize_filename(uploaded.name)
+    if not safe_name.lower().endswith(".csv"):
+        return Response({"error": "Unsupported file format. Only .csv files are accepted."}, status=status.HTTP_400_BAD_REQUEST)
+    if uploaded.size and uploaded.size > MAX_CSV_SIZE_BYTES:
+        mb = MAX_CSV_SIZE_BYTES / (1024 * 1024)
+        return Response({"error": f"File exceeds maximum allowed size of {mb:.0f} MB."}, status=status.HTTP_400_BAD_REQUEST)
+
     ob_data = profile.onboarding_data or {}
 
     company_name = request.data.get("company_name") or ob_data.get("company_name") or "Partner Retail Corp"
@@ -117,9 +123,12 @@ def upload_csv(request):
         lead_time_days = 4
 
     file_bytes = uploaded.read()
+    if not file_bytes or len(file_bytes) > MAX_CSV_SIZE_BYTES:
+        return Response({"error": "Uploaded CSV file is empty or exceeds size limit."}, status=status.HTTP_400_BAD_REQUEST)
+
     job = AnalysisJob.objects.create(
         company_name=company_name,
-        filename=uploaded.name,
+        filename=safe_name,
         lead_time_days=lead_time_days,
         status="pending",
     )
