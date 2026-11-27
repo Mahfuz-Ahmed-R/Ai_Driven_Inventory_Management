@@ -687,7 +687,7 @@ export default function LandingPage({
     <div className="min-h-screen bg-[#F7F6F2] dark:bg-[#111318] text-zinc-900 dark:text-zinc-100 flex flex-col">
       {/* Top Announcement Strip */}
       {showBanner && (
-        <div className="bg-white dark:bg-[#181B22] border-b border-[#E5E3DC] dark:border-[#262A34] px-4 py-2 text-center text-xs text-zinc-600 dark:text-zinc-300 relative">
+        <div className="bg-white dark:bg-[#181B22] border-b border-[#E5E3DC] dark:border-[#262A34] px-4 pr-9 py-2 text-center text-xs text-zinc-600 dark:text-zinc-300 relative">
           <span>
             M5 Retail Benchmark: <strong className="text-zinc-950 dark:text-white">98.7% ML policy fill rate</strong> and{" "}
             <strong className="text-zinc-950 dark:text-white">0.8264 MAE</strong> with 10 PCA-pruned features.
@@ -1061,17 +1061,17 @@ export default function LandingPage({
             </button>
           </div>
 
-          <div className="pt-6 border-t border-[#E5E3DC] dark:border-[#262A34] grid grid-cols-3 gap-6 max-w-lg">
+          <div className="pt-6 border-t border-[#E5E3DC] dark:border-[#262A34] grid grid-cols-3 gap-3 sm:gap-6 max-w-lg">
             <div>
-              <div className="text-xl font-bold tabular-nums text-zinc-950 dark:text-white">98.7%</div>
+              <div className="text-lg sm:text-xl font-bold tabular-nums text-zinc-950 dark:text-white">98.7%</div>
               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">ML policy fill rate</div>
             </div>
             <div>
-              <div className="text-xl font-bold tabular-nums text-zinc-950 dark:text-white">-41.2%</div>
+              <div className="text-lg sm:text-xl font-bold tabular-nums text-zinc-950 dark:text-white">-41.2%</div>
               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">PCA-pruned features</div>
             </div>
             <div>
-              <div className="text-xl font-bold tabular-nums text-zinc-950 dark:text-white font-mono">0.05 ms</div>
+              <div className="text-lg sm:text-xl font-bold tabular-nums text-zinc-950 dark:text-white font-mono">0.05 ms</div>
               <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Inference per SKU</div>
             </div>
           </div>
@@ -1898,7 +1898,7 @@ export default function LandingPage({
             className="max-w-6xl w-full bg-[#181B22] border border-[#262A34] rounded-[10px] overflow-hidden shadow-2xl animate-modal-pop"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-4 py-3 bg-[#1F232D] border-b border-[#262A34] flex items-center justify-between gap-4">
+            <div className="px-3 sm:px-4 py-3 bg-[#1F232D] border-b border-[#262A34] flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-xs font-semibold text-white truncate">{activeShot.label}</span>
                 <span className="hidden sm:inline text-xs text-zinc-400 truncate">— {activeShot.title}</span>
@@ -1958,7 +1958,7 @@ export default function LandingPage({
           onClick={() => setRoiModalOpen(false)}
         >
           <div
-            className="max-w-lg w-full bg-white dark:bg-[#181B22] border border-[#E5E3DC] dark:border-[#262A34] rounded-[10px] shadow-2xl p-6 space-y-5 animate-modal-pop"
+            className="max-w-lg w-full max-h-[90vh] overflow-y-auto bg-white dark:bg-[#181B22] border border-[#E5E3DC] dark:border-[#262A34] rounded-[10px] shadow-2xl p-5 sm:p-6 space-y-5 animate-modal-pop"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -2018,7 +2018,7 @@ export default function LandingPage({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <div className="p-4 rounded-[8px] bg-[#F7F6F2] dark:bg-[#111318] border border-[#E5E3DC] dark:border-[#262A34]">
                 <div className="text-[11px] text-zinc-500 dark:text-zinc-400">Est. working capital freed / yr</div>
                 <div className="text-2xl font-bold tabular-nums text-[#0F766E] dark:text-[#14B8A6] mt-1">
@@ -2066,7 +2066,7 @@ export default function LandingPage({
           onClick={() => setActiveResource(null)}
         >
           <div
-            className="max-w-lg w-full bg-white dark:bg-[#181B22] border border-[#E5E3DC] dark:border-[#262A34] rounded-[10px] shadow-2xl p-6 space-y-5 animate-modal-pop"
+            className="max-w-lg w-full max-h-[90vh] overflow-y-auto bg-white dark:bg-[#181B22] border border-[#E5E3DC] dark:border-[#262A34] rounded-[10px] shadow-2xl p-5 sm:p-6 space-y-5 animate-modal-pop"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">

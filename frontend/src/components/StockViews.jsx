@@ -170,7 +170,12 @@ export default function StockViews({ page, job, erpData, refreshErpData, searchQ
               <tr key={row.id}>
                 <td className="py-3 px-4 font-medium">{row.warehouse}</td>
                 <td className="py-3 px-4 text-zinc-500">{row.store}</td>
-                <td className="py-3 px-4 font-bold flex items-center gap-2"><Boxes className="w-3.5 h-3.5 text-[#0E9384]" /> {row.product}</td>
+                <td className="py-3 px-4 font-bold">
+                  <div className="flex items-center gap-2">
+                    <Boxes className="w-3.5 h-3.5 text-[#0E9384] shrink-0" />
+                    <span>{row.product}</span>
+                  </div>
+                </td>
                 <td className="py-3 px-4 text-zinc-500">{row.date}</td>
                 <td className="py-3 px-4 text-zinc-500">{row.person}</td>
                 <td className="py-3 px-4 text-right font-bold">{row.qty}</td>

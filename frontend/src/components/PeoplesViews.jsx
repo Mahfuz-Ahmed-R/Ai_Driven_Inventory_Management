@@ -26,8 +26,8 @@ export default function PeoplesViews({ erpData, refreshErpData, searchQuery, dar
           <h1 className="text-xl font-bold text-zinc-950 dark:text-white flex items-center gap-2"><Truck className="w-5 h-5 text-[#0F766E]" /> Suppliers</h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Manage your suppliers ({list.length})</p>
         </div>
-        <div className="flex gap-2">
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Supplier name..." className="px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Supplier name..." className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
           <button
             onClick={async () => {
               if (!newName.trim()) return;

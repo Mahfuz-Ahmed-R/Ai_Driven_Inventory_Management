@@ -220,7 +220,7 @@ export function ErrorPage({ code = "404", brokenPath, message, onNavigate, onRet
         </div>
 
         {!is500 && (
-          <div className="grid grid-cols-2 gap-2 text-left">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
             <button
               onClick={() => onNavigate("products")}
               className="p-2.5 rounded-[8px] bg-zinc-50 dark:bg-[#161922] border border-zinc-200 dark:border-slate-700 hover:border-[#0F766E] transition flex items-center gap-2 text-xs font-semibold cursor-pointer"

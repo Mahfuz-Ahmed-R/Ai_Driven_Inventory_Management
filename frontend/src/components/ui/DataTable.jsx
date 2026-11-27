@@ -267,7 +267,7 @@ export default function DataTable({
       {/* Toolbar: Search + Filters + Column Customizer + Export */}
       <div className="bg-white dark:bg-[#1E222D] rounded-[8px] border border-zinc-200 dark:border-slate-700/70 p-3.5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <div className="relative flex-1 min-w-[160px] w-full sm:max-w-xs">
             <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -315,7 +315,7 @@ export default function DataTable({
             })}
 
             {dateRangeConfig && (
-              <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
                 <Calendar className="w-3.5 h-3.5 text-zinc-400 hidden sm:block" />
                 <input
                   type="date"

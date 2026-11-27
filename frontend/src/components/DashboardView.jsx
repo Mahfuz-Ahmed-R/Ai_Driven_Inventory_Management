@@ -222,7 +222,7 @@ export default function DashboardView({ job, erpData, onNavigate, darkMode, user
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Scroll to top"
-          className="fixed bottom-5 left-5 z-40 p-2.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-md hover:bg-[#0F766E] hover:text-white transition cursor-pointer"
+          className="fixed bottom-5 right-5 z-40 p-2.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-md hover:bg-[#0F766E] hover:text-white transition cursor-pointer"
         >
           <ArrowUp className="w-4 h-4" />
         </button>

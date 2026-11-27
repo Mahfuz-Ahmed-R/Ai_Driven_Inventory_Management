@@ -526,9 +526,11 @@ export default function InventoryExtraViews({
                 <tr key={s.sku}>
                   <td className="py-3 px-4 text-zinc-500">{s.warehouse || "Lavish Warehouse"}</td>
                   <td className="py-3 px-4 text-zinc-500">{s.store_id || "Electro Mart"}</td>
-                  <td className="py-3 px-4 font-medium flex items-center gap-2">
-                    <AlertTriangle className={`w-3.5 h-3.5 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />
-                    {s.product_name}
+                  <td className="py-3 px-4 font-medium">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />
+                      <span>{s.product_name}</span>
+                    </div>
                   </td>
                   <td className="py-3 px-4 text-zinc-500">{s.category}</td>
                   <td className="py-3 px-4 font-bold">{s.sku}</td>
@@ -555,8 +557,8 @@ export default function InventoryExtraViews({
             <h1 className="text-xl font-bold text-zinc-950 dark:text-white">Category</h1>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Manage your categories & demand splits</p>
           </div>
-          <div className="flex gap-2">
-            <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="New category name..." className="px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
+          <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
+            <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="New category name..." className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
             <button
               onClick={async () => {
                 if (!newItemName.trim()) return;
@@ -615,9 +617,9 @@ export default function InventoryExtraViews({
             <h1 className="text-xl font-bold text-zinc-950 dark:text-white">Sub Category</h1>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">Manage your sub categories</p>
           </div>
-          <div className="flex gap-2">
-            <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Sub category..." className="px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
-            <input value={newItemExtra} onChange={(e) => setNewItemExtra(e.target.value)} placeholder="Parent category..." className="px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Sub category..." className="min-w-0 px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
+            <input value={newItemExtra} onChange={(e) => setNewItemExtra(e.target.value)} placeholder="Parent category..." className="min-w-0 px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
             <button
               onClick={async () => {
                 if (!newItemName.trim()) return;

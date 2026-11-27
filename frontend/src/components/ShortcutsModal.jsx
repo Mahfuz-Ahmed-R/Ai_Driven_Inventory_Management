@@ -25,7 +25,7 @@ export default function ShortcutsModal({ open, onClose }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700 rounded-[12px] shadow-2xl p-5 space-y-4 animate-modal-pop"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700 rounded-[12px] shadow-2xl p-5 space-y-4 animate-modal-pop"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

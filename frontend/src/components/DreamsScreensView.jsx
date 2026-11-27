@@ -33,7 +33,7 @@ export default function DreamsScreensView({ page, job, searchQuery, darkMode, on
 
   if (page === "auth") {
     return (
-      <div className="max-w-md mx-auto mt-10 bg-white dark:bg-[#141417] border border-zinc-200 dark:border-zinc-800 rounded-[12px] p-8 space-y-5">
+      <div className="max-w-md mx-4 sm:mx-auto mt-10 bg-white dark:bg-[#141417] border border-zinc-200 dark:border-zinc-800 rounded-[12px] p-5 sm:p-8 space-y-5">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-[8px] bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 flex items-center justify-center">
             <Lock className="w-5 h-5" />
@@ -147,8 +147,10 @@ export default function DreamsScreensView({ page, job, searchQuery, darkMode, on
               {filteredSkus.map((s) => (
                 <tr key={s.sku} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
                   <td className="py-3 px-4 font-bold text-zinc-950 dark:text-white">{s.sku}</td>
-                  <td className="py-3 px-4 flex items-center gap-2 font-medium text-zinc-800 dark:text-zinc-200">
-                    <Package className="w-3.5 h-3.5 text-zinc-400" /> {s.product_name}
+                  <td className="py-3 px-4 font-medium text-zinc-800 dark:text-zinc-200">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-3.5 h-3.5 text-zinc-400 shrink-0" /> {s.product_name}
+                    </div>
                   </td>
                   <td className="py-3 px-4 text-zinc-500">{s.category}</td>
                   <td className="py-3 px-4 text-right">${s.price.toFixed(2)}</td>
@@ -172,7 +174,7 @@ export default function DreamsScreensView({ page, job, searchQuery, darkMode, on
           <h1 className="text-xl font-bold text-zinc-950 dark:text-white">Low Stocks & Stockout Alerts</h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">Dashboard &gt; Inventory &gt; Low Stocks</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {[
             { id: "low", label: "Low Stocks" },
             { id: "out", label: "Imminent Stockout (≤7d)" },
@@ -207,9 +209,11 @@ export default function DreamsScreensView({ page, job, searchQuery, darkMode, on
               {lowList.map((s) => (
                 <tr key={s.sku}>
                   <td className="py-3 px-4 font-bold">{s.sku}</td>
-                  <td className="py-3 px-4 font-medium flex items-center gap-2">
-                    <AlertTriangle className={`w-3.5 h-3.5 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />{" "}
-                    {s.product_name}
+                  <td className="py-3 px-4 font-medium">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />{" "}
+                      <span>{s.product_name}</span>
+                    </div>
                   </td>
                   <td className="py-3 px-4 text-right">{s.current_stock}</td>
                   <td className={`py-3 px-4 text-right font-bold ${s.days_left <= 7 ? "text-red-500" : "text-amber-500"}`}>

@@ -68,7 +68,7 @@ export default function InventoryReportView({ job, searchQuery, darkMode }) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canExportPdf ? (
             <a
               href={`/api/jobs/${job.id}/pdf/`}
@@ -150,8 +150,8 @@ export default function InventoryReportView({ job, searchQuery, darkMode }) {
       {/* SKU Digital Twin Detail Modal */}
       {selectedSku && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#141417] border border-zinc-200 dark:border-zinc-800 rounded-[12px] max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl">
-            <div className="flex items-start justify-between">
+          <div className="bg-white dark:bg-[#141417] border border-zinc-200 dark:border-zinc-800 rounded-[12px] max-w-4xl w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 space-y-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
                   {selectedSku.product_name} ({selectedSku.sku})

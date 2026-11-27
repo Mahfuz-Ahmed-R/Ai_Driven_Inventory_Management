@@ -124,11 +124,11 @@ export default function ReferralView() {
             Code: <span className="font-mono font-bold text-[#0E9384]">{code}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-1 max-w-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 max-w-lg w-full">
           <input
             readOnly
             value={shareUrl}
-            className="flex-1 px-3 py-2 text-xs font-mono rounded-[8px] bg-zinc-50 dark:bg-[#161922] border border-zinc-200 dark:border-slate-700 text-zinc-800 dark:text-slate-200"
+            className="flex-1 min-w-0 px-3 py-2 text-xs font-mono rounded-[8px] bg-zinc-50 dark:bg-[#161922] border border-zinc-200 dark:border-slate-700 text-zinc-800 dark:text-slate-200"
           />
           <button
             type="button"

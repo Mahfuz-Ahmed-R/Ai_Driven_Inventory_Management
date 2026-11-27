@@ -102,7 +102,7 @@ export default function OnboardingWizard() {
 
   return (
     <div className="fixed inset-0 z-[95] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700 rounded-[12px] max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-5 animate-modal-pop">
+      <div className="bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700 rounded-[12px] max-w-xl w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-2xl space-y-5 animate-modal-pop">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#0E9384]">
@@ -260,7 +260,7 @@ export default function OnboardingWizard() {
             <div className="flex items-center gap-2 font-bold text-emerald-500">
               <CheckCircle2 className="w-4 h-4" /> Ready to Apply Personalization
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               <div><span className="text-zinc-400">Company:</span> <strong>{form.company_name || "—"}</strong></div>
               <div><span className="text-zinc-400">Industry:</span> <strong>{form.industry}</strong></div>
               <div><span className="text-zinc-400">SKU Scale:</span> <strong>{form.sku_scale}</strong></div>

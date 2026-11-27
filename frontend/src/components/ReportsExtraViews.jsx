@@ -48,11 +48,11 @@ export default function ReportsExtraViews({ page, job, erpData, searchQuery, dar
         <h1 className="text-xl font-bold text-zinc-950 dark:text-white">{title}</h1>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">{subtitle}</p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
         <input
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value)}
-          className="px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700"
+          className="flex-1 sm:flex-initial min-w-0 px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700"
         />
         <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] bg-zinc-900 dark:bg-slate-800 text-white text-xs font-semibold cursor-pointer">
           <Printer className="w-3.5 h-3.5" /> Print
@@ -297,7 +297,11 @@ export default function ReportsExtraViews({ page, job, erpData, searchQuery, dar
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {invoices.map((i) => (
                 <tr key={i.inv}>
-                  <td className="py-3 px-4 font-bold text-[#0F766E] flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> {i.inv}</td>
+                  <td className="py-3 px-4 font-bold text-[#0F766E]">
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      <FileText className="w-3.5 h-3.5 shrink-0" /> {i.inv}
+                    </div>
+                  </td>
                   <td className="py-3 px-4 font-medium">{i.customer}</td>
                   <td className="py-3 px-4 text-zinc-500">{i.due_date}</td>
                   <td className="py-3 px-4 text-right font-semibold">${i.amount.toLocaleString()}</td>

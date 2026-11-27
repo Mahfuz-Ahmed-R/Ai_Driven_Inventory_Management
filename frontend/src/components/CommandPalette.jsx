@@ -199,7 +199,7 @@ export default function CommandPalette({
           )}
         </div>
 
-        <div className="px-4 py-2 border-t border-zinc-200 dark:border-slate-700/70 bg-zinc-50 dark:bg-[#161922] flex items-center justify-between text-[10px] text-zinc-400">
+        <div className="px-4 py-2 border-t border-zinc-200 dark:border-slate-700/70 bg-zinc-50 dark:bg-[#161922] flex flex-wrap items-center justify-between gap-2 text-[10px] text-zinc-400">
           <span>↑↓ to navigate • Enter to select • Esc to close</span>
           <span className="font-mono">Ctrl/⌘ + K</span>
         </div>
