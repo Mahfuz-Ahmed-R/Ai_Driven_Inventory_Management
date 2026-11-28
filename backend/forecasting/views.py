@@ -96,6 +96,14 @@ def download_sample_csv(request):
 @require_auth
 def upload_csv(request):
     profile = get_active_workspace_profile(request)
+    if not profile.onboarding_completed:
+        return Response(
+            {
+                "error": "Please complete workspace onboarding setup before uploading a CSV.",
+                "code": "ONBOARDING_REQUIRED",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
     tier_cfg = TIER_CONFIGS.get(profile.plan_tier, TIER_CONFIGS["free"])
     if AnalysisJob.objects.count() >= tier_cfg["max_jobs"]:
         return Response(

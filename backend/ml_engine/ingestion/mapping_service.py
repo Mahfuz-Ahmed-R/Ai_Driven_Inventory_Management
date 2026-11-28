@@ -127,7 +127,10 @@ class LLMColumnMappingService:
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(api_version="v1beta"),
+        )
         prompt = self._build_prompt(profile)
         response = client.models.generate_content(
             model=self.model_name,

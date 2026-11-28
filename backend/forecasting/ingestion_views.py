@@ -58,11 +58,28 @@ def _serialize_dataset_response(ds: UploadedDataset, standardized_preview: list[
     }
 
 
+def _check_onboarding_completed(profile):
+    if not profile.onboarding_completed:
+        return Response(
+            {
+                "error": "Please complete workspace onboarding setup before uploading a CSV.",
+                "code": "ONBOARDING_REQUIRED",
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return None
+
+
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 @require_auth
 def inspect_uploaded_csv(request):
     """Step 1: Upload CSV, preserve original file, classify with Gemini + backend checks, map columns, and validate."""
+    profile = get_active_workspace_profile(request)
+    blocked = _check_onboarding_completed(profile)
+    if blocked is not None:
+        return blocked
+
     uploaded = request.FILES.get("file")
     if not uploaded:
         return Response({"error": "No CSV file uploaded under 'file'."}, status=status.HTTP_400_BAD_REQUEST)
@@ -189,6 +206,10 @@ def revalidate_dataset_mapping(request, dataset_id):
 def confirm_and_run_forecast(request, dataset_id):
     """Step 3: Transform validated dataset into Universal Internal Schema and launch forecasting job."""
     profile = get_active_workspace_profile(request)
+    blocked = _check_onboarding_completed(profile)
+    if blocked is not None:
+        return blocked
+
     tier_cfg = TIER_CONFIGS.get(profile.plan_tier, TIER_CONFIGS["free"])
     if AnalysisJob.objects.count() >= tier_cfg["max_jobs"]:
         return Response(

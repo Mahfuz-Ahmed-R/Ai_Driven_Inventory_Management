@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   XCircle,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 import { apiRequest } from "../utils/apiClient";
 import { getStoredTokens } from "../hooks/useAuth";
@@ -49,7 +50,8 @@ export default function UploadView({
   wsStreamedSummary,
   wsError,
 }) {
-  const { saasState } = useSaas();
+  const { saasState, saasLoading, setOnboardingOpen } = useSaas();
+  const isOnboardingCompleted = Boolean(saasState?.onboarding?.completed);
   const onboardingData = saasState?.onboarding?.data || {};
   const fileInputRef = useRef(null);
   const companyDirtyRef = useRef(false);
@@ -80,6 +82,10 @@ export default function UploadView({
 
   const handleFileSelected = (selected) => {
     if (!selected) return;
+    if (!isOnboardingCompleted) {
+      setUploadError("Please complete workspace onboarding setup before uploading a CSV.");
+      return;
+    }
     setUploadError("");
     if (!selected.name.toLowerCase().endsWith(".csv")) {
       setUploadError("Unsupported file format. Please select a .csv file.");
@@ -256,83 +262,114 @@ export default function UploadView({
         {/* Left: Upload, Classification, Mapping, Validation, Preview */}
         <div className="lg:col-span-7 space-y-5">
           <div className="bg-white dark:bg-[#1E222D] rounded-[8px] border border-zinc-200 dark:border-slate-700/70 p-4 sm:p-5 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-slate-400 mb-1.5">
-                  Company Name
-                </label>
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => {
-                    companyDirtyRef.current = true;
-                    setCompanyName(e.target.value);
-                  }}
-                  className="w-full px-3.5 py-2 text-sm bg-zinc-50 dark:bg-[#161922] text-zinc-900 dark:text-white border border-zinc-200 dark:border-slate-700 rounded-[8px] focus:outline-none focus:border-[#0F766E]"
-                  placeholder="Acme Retail Ltd."
-                />
+            {saasLoading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-xs font-medium text-zinc-500 dark:text-slate-400">
+                <Loader2 className="w-4 h-4 animate-spin text-[#0F766E]" />
+                <span>Checking workspace setup...</span>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-600 dark:text-slate-400 mb-1.5">
-                  Supplier Lead Time (Days)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={30}
-                  value={leadTimeDays}
-                  onChange={(e) => {
-                    leadTimeDirtyRef.current = true;
-                    setLeadTimeDays(Number(e.target.value) || 4);
-                  }}
-                  className="w-full px-3.5 py-2 text-sm bg-zinc-50 dark:bg-[#161922] text-zinc-900 dark:text-white border border-zinc-200 dark:border-slate-700 rounded-[8px] focus:outline-none focus:border-[#0F766E]"
-                />
+            ) : !isOnboardingCompleted ? (
+              <div className="flex flex-col items-center justify-center text-center border-2 border-dashed border-zinc-300 dark:border-slate-700 rounded-[8px] p-8 bg-zinc-50 dark:bg-[#161922]/70 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-[#0F766E]/10 dark:bg-[#14B8A6]/15 text-[#0F766E] dark:text-[#14B8A6] flex items-center justify-center">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div className="space-y-1 max-w-md">
+                  <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
+                    Complete Workspace Setup to Upload CSV
+                  </h2>
+                  <p className="text-xs text-zinc-500 dark:text-slate-400">
+                    Finish the quick onboarding wizard (company name, industry, SKU scale, and default supplier lead time) before uploading sales data.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOnboardingOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[8px] bg-[#0F766E] hover:bg-[#0E9384] text-white text-xs font-bold transition cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Complete Onboarding Setup
+                </button>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-600 dark:text-slate-400 mb-1.5">
+                      Company Name
+                    </label>
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => {
+                        companyDirtyRef.current = true;
+                        setCompanyName(e.target.value);
+                      }}
+                      className="w-full px-3.5 py-2 text-sm bg-zinc-50 dark:bg-[#161922] text-zinc-900 dark:text-white border border-zinc-200 dark:border-slate-700 rounded-[8px] focus:outline-none focus:border-[#0F766E]"
+                      placeholder="Acme Retail Ltd."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-600 dark:text-slate-400 mb-1.5">
+                      Supplier Lead Time (Days)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={leadTimeDays}
+                      onChange={(e) => {
+                        leadTimeDirtyRef.current = true;
+                        setLeadTimeDays(Number(e.target.value) || 4);
+                      }}
+                      className="w-full px-3.5 py-2 text-sm bg-zinc-50 dark:bg-[#161922] text-zinc-900 dark:text-white border border-zinc-200 dark:border-slate-700 rounded-[8px] focus:outline-none focus:border-[#0F766E]"
+                    />
+                  </div>
+                </div>
 
-            {/* Drag-and-Drop Zone */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                const dropped = e.dataTransfer.files?.[0];
-                handleFileSelected(dropped);
-              }}
-              onClick={() => fileInputRef.current?.click()}
-              className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[8px] p-6 cursor-pointer transition ${isDragging
-                ? "border-[#0F766E] bg-[#0F766E]/10"
-                : "border-zinc-300 dark:border-slate-700 hover:border-[#0F766E] bg-zinc-50 dark:bg-[#161922]/70"
-                }`}
-            >
-              <div className="w-11 h-11 rounded-full bg-zinc-900 dark:bg-slate-800 text-white flex items-center justify-center mb-2.5">
-                {uploading ? (
-                  <Loader2 className="w-5 h-5 text-[#0F766E] animate-spin" />
-                ) : (
-                  <UploadCloud className="w-5 h-5 text-[#0F766E]" />
-                )}
-              </div>
-              <div className="text-sm font-semibold text-zinc-900 dark:text-white text-center break-all">
-                {file ? file.name : "Drag & drop your sales CSV here, or click to browse"}
-              </div>
-              <div className="text-xs text-zinc-500 dark:text-slate-400 mt-1 text-center">
-                Any column names supported (e.g. <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">trans_dt</code>,{" "}
-                <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">sku</code>,{" "}
-                <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">qty</code>,{" "}
-                <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">unit_price</code>) · Max 200 MB
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={(e) => handleFileSelected(e.target.files?.[0])}
-              />
-            </div>
+                {/* Drag-and-Drop Zone */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const dropped = e.dataTransfer.files?.[0];
+                    handleFileSelected(dropped);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex flex-col items-center justify-center border-2 border-dashed rounded-[8px] p-6 cursor-pointer transition ${isDragging
+                    ? "border-[#0F766E] bg-[#0F766E]/10"
+                    : "border-zinc-300 dark:border-slate-700 hover:border-[#0F766E] bg-zinc-50 dark:bg-[#161922]/70"
+                    }`}
+                >
+                  <div className="w-11 h-11 rounded-full bg-zinc-900 dark:bg-slate-800 text-white flex items-center justify-center mb-2.5">
+                    {uploading ? (
+                      <Loader2 className="w-5 h-5 text-[#0F766E] animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-5 h-5 text-[#0F766E]" />
+                    )}
+                  </div>
+                  <div className="text-sm font-semibold text-zinc-900 dark:text-white text-center break-all">
+                    {file ? file.name : "Drag & drop your sales CSV here, or click to browse"}
+                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-slate-400 mt-1 text-center">
+                    Any column names supported (e.g. <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">trans_dt</code>,{" "}
+                    <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">sku</code>,{" "}
+                    <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">qty</code>,{" "}
+                    <code className="bg-zinc-200 dark:bg-slate-800 px-1 rounded">unit_price</code>) · Max 200 MB
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => handleFileSelected(e.target.files?.[0])}
+                  />
+                </div>
+              </>
+            )}
 
             {uploading && (
               <div className="space-y-1.5">

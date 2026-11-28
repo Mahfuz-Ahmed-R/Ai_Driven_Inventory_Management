@@ -547,62 +547,158 @@ export default function InventoryExtraViews({
     );
   }
 
-  // 5. CATEGORIES
+  // 5. CATEGORIES (driven by uploaded CSV / active forecast job)
   if (page === "categories") {
-    const catChart = categories.map((c, idx) => ({ name: c.name, count: (idx + 2) * 7 }));
+    const breakdown = job?.category_breakdown || [];
+    const skus = job?.skus || [];
+    const totalDemand = breakdown.reduce((s, c) => s + (c.demand_units || 0), 0) || 1;
+    const totalRevenue = breakdown.reduce((s, c) => s + (c.revenue || 0), 0) || 1;
+    const COLORS = ["#0E9384", "#FE9F43", "#3B82F6", "#8B5CF6", "#EC4899", "#10B981"];
+
+    const enriched = breakdown.map((c, idx) => {
+      const catSkus = skus.filter((s) => s.category === c.category);
+      const criticalCount = catSkus.filter((s) => s.urgency === "critical").length;
+      const totalStock = Math.round(catSkus.reduce((s, x) => s + (x.current_stock || 0), 0));
+      const avgPrice = catSkus.length
+        ? catSkus.reduce((s, x) => s + (x.price || 0), 0) / catSkus.length
+        : 0;
+      return {
+        ...c,
+        color: COLORS[idx % COLORS.length],
+        demandShare: ((c.demand_units / totalDemand) * 100).toFixed(1),
+        revenueShare: ((c.revenue / totalRevenue) * 100).toFixed(1),
+        criticalCount,
+        totalStock,
+        avgPrice: avgPrice.toFixed(2),
+      };
+    });
+
     return (
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-zinc-950 dark:text-white">Category</h1>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">Manage your categories & demand splits</p>
+            <h1 className="text-xl font-bold text-zinc-950 dark:text-white">Category Demand Split</h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              {job?.filename
+                ? `Showing ${enriched.length} categories from ${job.filename} (${skus.length} SKUs)`
+                : "Upload a sales CSV to view your category demand and revenue breakdown"}
+            </p>
           </div>
-          <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
-            <input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="New category name..." className="flex-1 min-w-0 px-3 py-1.5 text-xs rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700" />
+          {!enriched.length && (
             <button
-              onClick={async () => {
-                if (!newItemName.trim()) return;
-                await erpRequest("/api/erp/categories/", "POST", { name: newItemName });
-                setNewItemName("");
-                await refreshErpData?.();
-              }}
-              className="px-3.5 py-1.5 rounded-[8px] bg-[#0F766E] text-white text-xs font-bold cursor-pointer"
+              onClick={() => onNavigate?.("upload")}
+              className="px-3.5 py-2 rounded-[8px] bg-[#0F766E] text-white text-xs font-bold cursor-pointer"
             >
-              + Add Category
+              Upload Sales CSV
             </button>
+          )}
+        </div>
+
+        {enriched.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              <div className={`${CARD} p-5 lg:col-span-7`}>
+                <h2 className="text-sm font-bold mb-3 text-zinc-900 dark:text-white">
+                  28-Day Forecast Demand by Category
+                </h2>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={enriched}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                      <XAxis dataKey="category" tick={{ fontSize: 10, fill: "#71717A" }} />
+                      <YAxis tick={{ fontSize: 10, fill: "#71717A" }} />
+                      <Tooltip {...RECHARTS_TOOLTIP_PROPS} />
+                      <Legend wrapperStyle={{ fontSize: "11px" }} />
+                      <Bar dataKey="demand_units" name="28D Demand (Units)" fill="#0E9384" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="sku_count" name="Active SKUs" fill="#FE9F43" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className={`${CARD} p-5 lg:col-span-5`}>
+                <h2 className="text-sm font-bold mb-3 text-zinc-900 dark:text-white">
+                  Projected Revenue Split
+                </h2>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={enriched}
+                        dataKey="revenue"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={52}
+                        outerRadius={82}
+                        paddingAngle={3}
+                      >
+                        {enriched.map((entry) => (
+                          <Cell key={entry.category} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        {...RECHARTS_TOOLTIP_PROPS}
+                        formatter={(val) => `$${Number(val).toLocaleString()}`}
+                      />
+                      <Legend wrapperStyle={{ fontSize: "11px" }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className={`${CARD} overflow-x-auto`}>
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr>
+                    <th className={TH}>Category</th>
+                    <th className={TH}>SKUs</th>
+                    <th className={TH}>28D Demand (Units)</th>
+                    <th className={TH}>Demand Share</th>
+                    <th className={TH}>Projected Revenue</th>
+                    <th className={TH}>Revenue Share</th>
+                    <th className={TH}>On-Hand Stock</th>
+                    <th className={TH}>Avg Price</th>
+                    <th className={TH}>Critical SKUs</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {enriched.map((c) => (
+                    <tr key={c.category}>
+                      <td className="py-3 px-4 font-bold flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        {c.category}
+                      </td>
+                      <td className="py-3 px-4">{c.sku_count}</td>
+                      <td className="py-3 px-4 font-semibold">{Number(c.demand_units).toLocaleString()}</td>
+                      <td className="py-3 px-4 text-zinc-500">{c.demandShare}%</td>
+                      <td className="py-3 px-4 font-semibold">${Number(c.revenue).toLocaleString()}</td>
+                      <td className="py-3 px-4 text-zinc-500">{c.revenueShare}%</td>
+                      <td className="py-3 px-4">{c.totalStock.toLocaleString()}</td>
+                      <td className="py-3 px-4">${c.avgPrice}</td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            c.criticalCount > 0
+                              ? "bg-red-500/15 text-red-500"
+                              : "bg-emerald-500/15 text-emerald-500"
+                          }`}
+                        >
+                          {c.criticalCount}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <div className={`${CARD} p-8 text-center text-xs text-zinc-500 dark:text-zinc-400`}>
+            No forecast job loaded yet. Upload your sales CSV and confirm forecasting to view category demand and revenue splits.
           </div>
-        </div>
-        <div className={`${CARD} p-5`}>
-          <h2 className="text-sm font-bold mb-3">Active Products per Category</h2>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={catChart}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#71717A" }} />
-                <YAxis tick={{ fontSize: 10, fill: "#71717A" }} />
-                <Tooltip {...RECHARTS_TOOLTIP_PROPS} />
-                <Bar dataKey="count" name="SKUs" fill="#0E9384" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className={`${CARD} overflow-x-auto`}>
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr><th className={TH}>Category</th><th className={TH}>Category Slug</th><th className={TH}>Created On</th><th className={TH}>Status</th></tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {categories.map((c) => (
-                <tr key={c.id}>
-                  <td className="py-3 px-4 font-bold">{c.name}</td>
-                  <td className="py-3 px-4 text-zinc-500">{c.slug}</td>
-                  <td className="py-3 px-4 text-zinc-500">{c.created_on}</td>
-                  <td className="py-3 px-4"><StatusBadge status={c.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        )}
       </div>
     );
   }

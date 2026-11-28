@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 
-from .auth_utils import get_auth_context, require_auth
+from .auth_utils import get_authenticated_user, require_auth
 from .models import AnalysisJob, Product, ReferralEvent, WorkspaceProfile
 
 TIER_CONFIGS = {
@@ -59,7 +59,7 @@ TIER_CONFIGS = {
 def get_active_workspace_profile(request=None) -> WorkspaceProfile:
     user = None
     if request is not None:
-        user, _, _ = get_auth_context(request)
+        user = get_authenticated_user(request)
     if user is not None:
         key = f"user:{user.id}"
         profile, _ = WorkspaceProfile.objects.get_or_create(

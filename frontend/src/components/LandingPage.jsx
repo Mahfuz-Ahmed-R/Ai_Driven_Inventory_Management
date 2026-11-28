@@ -46,6 +46,7 @@ import BrandMark from "./BrandMark";
 import { AuthCard } from "./AuthSystemViews";
 import { RECHARTS_TOOLTIP_PROPS } from "../utils/chartTheme";
 import { useSaas } from "../context/SaasContext";
+import { getStoredTokens } from "../hooks/useAuth";
 import { useToast } from "./ui/ToastProvider";
 
 const HORIZON_PREVIEW = [
@@ -609,13 +610,15 @@ export default function LandingPage({
   const toast = useToast();
 
   const handleSelectPlan = async (plan) => {
-    if (user) {
+    const isAuthenticated = Boolean(user || getStoredTokens().access);
+    if (isAuthenticated) {
       if (plan.planKey !== saasState?.plan_tier) {
         try {
           await upgradePlan(plan.planKey);
           toast.success(`Switched workspace to ${plan.name} plan.`);
         } catch (err) {
           toast.error(err.message || "Failed to update plan");
+          return;
         }
       }
       onNavigate("dashboard");
@@ -978,12 +981,14 @@ export default function LandingPage({
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            <button
-              onClick={() => handleLandingAction("signin")}
-              className="inline-flex px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-[6px] border border-[#E5E3DC] dark:border-[#262A34] bg-white dark:bg-[#181B22] text-xs sm:text-[13px] font-medium hover:border-zinc-400 dark:hover:border-zinc-600 transition cursor-pointer items-center gap-1.5"
-            >
-              <LogIn className="w-3.5 h-3.5" /> Sign in
-            </button>
+            {!user && (
+              <button
+                onClick={() => handleLandingAction("signin")}
+                className="inline-flex px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-[6px] border border-[#E5E3DC] dark:border-[#262A34] bg-white dark:bg-[#181B22] text-xs sm:text-[13px] font-medium hover:border-zinc-400 dark:hover:border-zinc-600 transition cursor-pointer items-center gap-1.5"
+              >
+                <LogIn className="w-3.5 h-3.5" /> Sign in
+              </button>
+            )}
             <button
               onClick={() => onNavigate("dashboard")}
               className="hidden sm:inline-flex px-3.5 sm:px-4 py-2 rounded-[6px] bg-[#0F766E] hover:bg-[#115E59] dark:bg-[#14B8A6] dark:hover:bg-[#0D9488] text-white dark:text-zinc-950 text-[13px] font-semibold transition cursor-pointer items-center gap-1.5"
@@ -1649,7 +1654,11 @@ export default function LandingPage({
                       : "bg-white dark:bg-[#181B22] border border-[#E5E3DC] dark:border-[#262A34] text-zinc-900 dark:text-zinc-100 hover:border-zinc-400 dark:hover:border-zinc-500"
                   }`}
                 >
-                  {plan.cta}
+                  {user
+                    ? saasState?.plan_tier === plan.planKey
+                      ? "Current Plan — Open Workspace"
+                      : `Switch to ${plan.name}`
+                    : plan.cta}
                 </button>
               </div>
             ))}

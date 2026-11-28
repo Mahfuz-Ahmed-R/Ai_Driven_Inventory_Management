@@ -14,6 +14,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from ml_engine.forecaster import forecast_with_backtest
+from forecasting.models import WorkspaceProfile
 from ml_engine.ingestion import (
     DataTransformationService,
     DataValidationService,
@@ -30,7 +31,51 @@ class IngestionPipelineTests(TestCase):
             password="Password123",
             is_active=True,
         )
+        WorkspaceProfile.objects.create(
+            key=f"user:{self.user.id}",
+            user=self.user,
+            referral_code="TEST-REF-001",
+            onboarding_completed=True,
+        )
         self.client.force_authenticate(user=self.user)
+
+    @patch("ml_engine.ingestion.mapping_service.LLMColumnMappingService._call_gemini", side_effect=RuntimeError("offline test"))
+    def test_upload_blocked_until_onboarding_completed(self, _mock_gemini):
+        profile = WorkspaceProfile.objects.get(key=f"user:{self.user.id}")
+        profile.onboarding_completed = False
+        profile.save(update_fields=["onboarding_completed"])
+
+        csv_bytes = b"date,product_id,quantity\n2026-01-01,SKU-1,5\n"
+        res_ingest = self.client.post(
+            "/api/ingestion/upload/",
+            {"file": SimpleUploadedFile("sales.csv", csv_bytes, content_type="text/csv")},
+            format="multipart",
+        )
+        self.assertEqual(res_ingest.status_code, 403)
+        self.assertEqual(res_ingest.json()["code"], "ONBOARDING_REQUIRED")
+
+        res_legacy = self.client.post(
+            "/api/uploads/",
+            {"file": SimpleUploadedFile("sales.csv", csv_bytes, content_type="text/csv")},
+            format="multipart",
+        )
+        self.assertEqual(res_legacy.status_code, 403)
+        self.assertEqual(res_legacy.json()["code"], "ONBOARDING_REQUIRED")
+
+        ob_res = self.client.patch(
+            "/api/saas/onboarding/",
+            {"step": 3, "data": {"company_name": "TestCo"}, "completed": True},
+            format="json",
+        )
+        self.assertEqual(ob_res.status_code, 200)
+        self.assertTrue(ob_res.json()["completed"])
+
+        res_after = self.client.post(
+            "/api/ingestion/upload/",
+            {"file": SimpleUploadedFile("sales.csv", csv_bytes, content_type="text/csv")},
+            format="multipart",
+        )
+        self.assertEqual(res_after.status_code, 201)
 
     @patch("ml_engine.ingestion.mapping_service.LLMColumnMappingService._call_gemini", side_effect=RuntimeError("offline test"))
     def test_rejects_unrelated_student_attendance_csv(self, _mock_gemini):
@@ -270,3 +315,9 @@ class AuthFlowTests(TestCase):
             )
             self.assertEqual(unlock.status_code, 200)
             self.assertIn("access", unlock.json())
+
+            access_token = unlock.json()["access"]
+            self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+            upgrade = self.client.post("/api/saas/upgrade/", {"plan_tier": "pro"}, format="json")
+            self.assertEqual(upgrade.status_code, 200)
+            self.assertEqual(upgrade.json()["plan_tier"], "pro")
