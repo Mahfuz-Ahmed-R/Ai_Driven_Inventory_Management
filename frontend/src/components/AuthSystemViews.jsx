@@ -34,7 +34,7 @@ import { AnimatedNumber } from "./ui/AnimatedNumber";
 
 const CARD = "bg-white dark:bg-[#1E222D] rounded-[8px] border border-zinc-200 dark:border-slate-700/70";
 const TH = "py-3 px-4 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold uppercase text-zinc-500 dark:text-zinc-400";
-const INPUT = "w-full px-3.5 py-2 text-sm rounded-[8px] bg-zinc-50 dark:bg-[#161922] border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-white focus:outline-none focus:border-[#0F766E]";
+const INPUT = "w-full px-3.5 py-2 text-base sm:text-sm rounded-[8px] bg-zinc-50 dark:bg-[#161922] border border-zinc-200 dark:border-slate-700 text-zinc-900 dark:text-white focus:outline-none focus:border-[#0F766E]";
 
 const WEEKLY_COMPANIES = [
   { day: "M", count: 42 },
@@ -502,7 +502,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
 
   if (user && !switchAccountMode && (screen === "signin" || screen === "register")) {
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-5 text-center`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-5 text-center`}>
         <div className="w-12 h-12 rounded-full bg-[#0F766E]/15 text-[#0F766E] dark:text-[#14B8A6] flex items-center justify-center mx-auto">
           <CheckCircle2 className="w-6 h-6" />
         </div>
@@ -578,7 +578,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
     };
 
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-5`}>
         {renderTabs()}
         <div className="space-y-1">
           <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Welcome back</h2>
@@ -624,7 +624,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
             error={fieldErrors.password}
           />
 
-          <div className="flex items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <label className="flex items-center gap-2 text-zinc-600 dark:text-slate-300 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -725,7 +725,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
     };
 
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-5`}>
         {renderTabs()}
         <div className="space-y-1">
           <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Create your account</h2>
@@ -920,7 +920,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
     };
 
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-5`}>
         <button
           type="button"
           onClick={() => switchScreen("signin")}
@@ -1037,7 +1037,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
     };
 
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-5`}>
         <button
           type="button"
           onClick={() => switchScreen(activePurpose === "register" ? "register" : "signin")}
@@ -1149,7 +1149,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
     };
 
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-5`}>
         <div className="space-y-1">
           <h2 className="text-lg font-bold text-zinc-950 dark:text-white">Set a new password</h2>
           <p className="text-xs text-zinc-500 dark:text-slate-400">
@@ -1214,7 +1214,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
   if (screen === "success") {
     const isPasswordReset = otpPurpose === "forgot_password";
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-4 text-center`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-4 text-center`}>
         <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
         <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
           {isPasswordReset ? "Password updated!" : "All set!"}
@@ -1282,7 +1282,7 @@ export function AuthCard({ screen, setScreen, email, setEmail, user, onAuthSucce
     };
 
     return (
-      <div className={`${CARD} p-6 sm:p-8 space-y-5`}>
+      <div className={`${CARD} p-4 sm:p-7 space-y-5`}>
         <div className="text-center space-y-1.5">
           <ShieldCheck className="w-11 h-11 text-[#0E9384] mx-auto" />
           <h2 className="text-lg font-bold text-zinc-950 dark:text-white">

@@ -711,16 +711,16 @@ export default function LandingPage({
 
       {/* Header */}
       <header className="sticky top-0 z-30 bg-[#F7F6F2]/95 dark:bg-[#111318]/95 backdrop-blur-sm border-b border-[#E5E3DC] dark:border-[#262A34]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4 relative">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4 relative">
           <button
             onClick={() => window.location.reload()}
-            className="flex items-center gap-2.5 cursor-pointer shrink-0"
+            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer min-w-0"
             title="Refresh Inventory Planner"
           >
             <BrandMark />
-            <div className="text-left leading-tight">
-              <div className="font-bold text-[16px] text-zinc-900 dark:text-white">Inventory Planner</div>
-              <div className="text-[11px] text-zinc-500 dark:text-zinc-400">AI Inventory Twin</div>
+            <div className="text-left leading-tight min-w-0">
+              <div className="font-bold text-sm sm:text-[16px] text-zinc-900 dark:text-white truncate">Inventory Planner</div>
+              <div className="hidden sm:block text-[11px] text-zinc-500 dark:text-zinc-400 truncate">AI Inventory Twin</div>
             </div>
           </button>
 
@@ -970,7 +970,7 @@ export default function LandingPage({
             </div>
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={() => setDarkMode(!darkMode)}
               aria-label="Toggle color theme"
@@ -980,13 +980,13 @@ export default function LandingPage({
             </button>
             <button
               onClick={() => handleLandingAction("signin")}
-              className="hidden sm:inline-flex px-3.5 py-2 rounded-[6px] border border-[#E5E3DC] dark:border-[#262A34] bg-white dark:bg-[#181B22] text-[13px] font-medium hover:border-zinc-400 dark:hover:border-zinc-600 transition cursor-pointer items-center gap-1.5"
+              className="inline-flex px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-[6px] border border-[#E5E3DC] dark:border-[#262A34] bg-white dark:bg-[#181B22] text-xs sm:text-[13px] font-medium hover:border-zinc-400 dark:hover:border-zinc-600 transition cursor-pointer items-center gap-1.5"
             >
               <LogIn className="w-3.5 h-3.5" /> Sign in
             </button>
             <button
               onClick={() => onNavigate("dashboard")}
-              className="px-3.5 sm:px-4 py-2 rounded-[6px] bg-[#0F766E] hover:bg-[#115E59] dark:bg-[#14B8A6] dark:hover:bg-[#0D9488] text-white dark:text-zinc-950 text-[13px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5"
+              className="hidden sm:inline-flex px-3.5 sm:px-4 py-2 rounded-[6px] bg-[#0F766E] hover:bg-[#115E59] dark:bg-[#14B8A6] dark:hover:bg-[#0D9488] text-white dark:text-zinc-950 text-[13px] font-semibold transition cursor-pointer items-center gap-1.5"
             >
               <span>Open workspace</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -1024,12 +1024,24 @@ export default function LandingPage({
             >
               Policy simulator
             </button>
-            <button
-              onClick={() => handleLandingAction("signin")}
-              className="flex items-center gap-2 w-full text-left py-2 px-2 rounded border border-[#E5E3DC] dark:border-[#262A34] font-semibold cursor-pointer"
-            >
-              <LogIn className="w-3.5 h-3.5" /> Sign in
-            </button>
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                onClick={() => handleLandingAction("signin")}
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-[6px] border border-[#E5E3DC] dark:border-[#262A34] font-semibold cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" /> Sign in
+              </button>
+              <button
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  onNavigate("dashboard");
+                }}
+                className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-[6px] bg-[#0F766E] dark:bg-[#14B8A6] text-white dark:text-zinc-950 font-semibold cursor-pointer"
+              >
+                <span>Open workspace</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         )}
       </header>
@@ -2128,24 +2140,26 @@ export default function LandingPage({
       {/* Blurred-Background Sign In / Register Modal */}
       {authScreen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto"
           onClick={closeAuthModal}
           role="dialog"
           aria-modal="true"
           aria-label="Account Authentication"
         >
           <div
-            className="w-full max-w-md relative animate-modal-pop my-8"
+            className="w-full max-w-md relative animate-modal-pop my-auto py-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              onClick={closeAuthModal}
-              aria-label="Close authentication modal"
-              className="absolute -top-10 right-0 z-10 p-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex justify-end mb-2">
+              <button
+                type="button"
+                onClick={closeAuthModal}
+                aria-label="Close authentication modal"
+                className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <AuthCard
               screen={authScreen}
