@@ -61,22 +61,24 @@ def execute_analysis_job(
             "message": f"Validated {meta['num_skus']} SKUs across {meta['num_days']} days ({meta['date_start']} to {meta['date_end']}).",
         })
 
-        # Step 2: Feature engineering, chronological backtest & 28-day rollout
+        # Step 2: Feature engineering, chronological backtest & multi-horizon rollout
         _emit(job_id, {
             "step": 2,
             "status": "running",
             "progress": 42,
-            "message": "Engineering features, backtesting LightGBM vs Seasonal-Naive & generating 28-day forecasts...",
+            "message": "Engineering features, backtesting LightGBM vs Seasonal-Naive & generating forecasts...",
         })
-        forecasts, backtest_metrics = forecast_with_backtest(normalized_df, horizon=28)
+        forecasts, backtest_metrics = forecast_with_backtest(normalized_df, horizon=None)
         meta["backtest"] = backtest_metrics
+        meta["supported_horizons"] = backtest_metrics.get("supported_horizons", [7, 14, 28])
         job.dataset_meta = meta
         job.save(update_fields=["dataset_meta"])
+        max_h = len(next(iter(forecasts.values()))["forecast_dates"]) if forecasts else 28
         _emit(job_id, {
             "step": 2,
             "status": "done",
             "progress": 58,
-            "message": f"Selected {backtest_metrics['selected_model']} and generated 28-day forecasts for {len(forecasts)} SKUs.",
+            "message": f"Selected {backtest_metrics['selected_model']} and generated {max_h}-day forecasts for {len(forecasts)} SKUs.",
         })
 
         # Step 3: Digital Twin Simulation
@@ -112,6 +114,8 @@ def execute_analysis_job(
                 forecast_payload={
                     "history_dates": f_data["history_dates"],
                     "history_sales": f_data["history_sales"],
+                    "hist_avg_daily": f_data.get("hist_avg_daily", 0.0),
+                    "demand_trend_pct": f_data.get("demand_trend_pct", 0.0),
                     "forecast_dates": f_data["forecast_dates"],
                     "forecast_sales": f_data["forecast_sales"],
                     "forecast_lower": f_data["forecast_lower"],
@@ -156,10 +160,32 @@ def execute_analysis_job(
         critical_skus = sorted([s for s in sku_dicts if s["urgency"] == "critical"], key=lambda x: x["days_left"])
         watch_count = sum(1 for s in sku_dicts if s["urgency"] == "watch")
         overstock_count = sum(1 for s in sku_dicts if s["urgency"] == "overstock")
+        healthy_count = sum(1 for s in sku_dicts if s["urgency"] == "healthy")
+        out_of_stock_count = sum(1 for s in sku_dicts if s["current_stock"] <= 0)
+        reorder_needed_count = sum(1 for s in sku_dicts if s["suggested_order_qty"] > 0)
 
         eoq_row = next((p for p in policy_summary if p["policy_key"] == "eoq"), {})
         ml_row = next((p for p in policy_summary if p["policy_key"] == "ml"), {})
         savings_vs_eoq = round(max(0.0, eoq_row.get("total_cost", 0.0) - ml_row.get("total_cost", 0.0)), 2)
+
+        # Historical average daily sales & period-over-period sales growth
+        sample_first = next(iter(forecasts.values()))
+        h_dates = sample_first["history_dates"]
+        f_dates = sample_first["forecast_dates"]
+
+        hist_daily_totals = [
+            sum(v["history_sales"][idx] for v in forecasts.values() if idx < len(v["history_sales"]))
+            for idx in range(len(h_dates))
+        ]
+        avg_daily_sales = round(float(np.mean(hist_daily_totals)), 2) if hist_daily_totals else 0.0
+
+        comp_win = min(28, len(hist_daily_totals) // 2)
+        if comp_win >= 3:
+            recent_sum = float(sum(hist_daily_totals[-comp_win:]))
+            prev_sum = float(sum(hist_daily_totals[-2 * comp_win:-comp_win]))
+            sales_growth_pct = round(((recent_sum - prev_sum) / prev_sum) * 100.0, 1) if prev_sum > 0 else None
+        else:
+            sales_growth_pct = None
 
         kpis = {
             "total_skus": len(sku_dicts),
@@ -169,7 +195,15 @@ def execute_analysis_job(
             "total_reorder_cost": total_reorder_cost,
             "critical_count": len(critical_skus),
             "watch_count": watch_count,
+            "healthy_count": healthy_count,
             "overstock_count": overstock_count,
+            "out_of_stock_count": out_of_stock_count,
+            "reorder_needed_count": reorder_needed_count,
+            "avg_daily_sales": avg_daily_sales,
+            "sales_growth_pct": sales_growth_pct,
+            "has_real_stock": bool(meta.get("has_real_stock", False)),
+            "has_real_price": bool(meta.get("has_real_price", True)),
+            "supported_horizons": meta.get("supported_horizons", [7, 14, 28]),
             "ai_fill_rate": ml_row.get("fill_rate", 98.5),
             "cost_savings_vs_eoq": savings_vs_eoq,
         }
@@ -193,17 +227,34 @@ def execute_analysis_job(
             for v in sorted(cat_map.values(), key=lambda x: -x["demand_units"])
         ]
 
-        # Aggregate 28-day history + 28-day forecast trajectory
-        sample_first = next(iter(forecasts.values()))
-        h_dates = sample_first["history_dates"]
-        f_dates = sample_first["forecast_dates"]
+        # Aggregate history + full horizon forecast trajectory (with uncertainty & revenue)
         agg_traj = []
         for idx, d in enumerate(h_dates):
             total_h = sum(v["history_sales"][idx] for v in forecasts.values() if idx < len(v["history_sales"]))
-            agg_traj.append({"date": d, "actual": round(total_h, 1), "forecast": None})
+            rev_h = sum(v["history_sales"][idx] * v["price"] for v in forecasts.values() if idx < len(v["history_sales"]))
+            agg_traj.append({
+                "date": d,
+                "actual": round(total_h, 1),
+                "forecast": None,
+                "forecast_lower": None,
+                "forecast_upper": None,
+                "revenue_actual": round(rev_h, 2),
+                "revenue_forecast": None,
+            })
         for idx, d in enumerate(f_dates):
             total_f = sum(v["forecast_sales"][idx] for v in forecasts.values() if idx < len(v["forecast_sales"]))
-            agg_traj.append({"date": d, "actual": None, "forecast": round(total_f, 1)})
+            total_lo = sum(v["forecast_lower"][idx] for v in forecasts.values() if idx < len(v["forecast_lower"]))
+            total_hi = sum(v["forecast_upper"][idx] for v in forecasts.values() if idx < len(v["forecast_upper"]))
+            rev_f = sum(v["forecast_sales"][idx] * v["price"] for v in forecasts.values() if idx < len(v["forecast_sales"]))
+            agg_traj.append({
+                "date": d,
+                "actual": None,
+                "forecast": round(total_f, 1),
+                "forecast_lower": round(total_lo, 1),
+                "forecast_upper": round(total_hi, 1),
+                "revenue_actual": None,
+                "revenue_forecast": round(rev_f, 2),
+            })
 
         job.summary_kpis = kpis
         job.category_breakdown = cat_list

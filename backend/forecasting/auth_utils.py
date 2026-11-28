@@ -280,6 +280,7 @@ def require_auth(view_func):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
         request.auth_user = user
+        request.user = user
         return view_func(request, *args, **kwargs)
 
     return _wrapped

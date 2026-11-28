@@ -105,7 +105,7 @@ def upload_csv(request):
             status=status.HTTP_403_FORBIDDEN,
         )
     tier_cfg = TIER_CONFIGS.get(profile.plan_tier, TIER_CONFIGS["free"])
-    if AnalysisJob.objects.count() >= tier_cfg["max_jobs"]:
+    if AnalysisJob.objects.filter(user=request.user).count() >= tier_cfg["max_jobs"]:
         return Response(
             {"error": f"Forecast job limit ({tier_cfg['max_jobs']}) reached for {tier_cfg['label']} plan. Upgrade or delete old jobs.", "code": "TIER_LIMIT"},
             status=status.HTTP_403_FORBIDDEN,
@@ -135,6 +135,7 @@ def upload_csv(request):
         return Response({"error": "Uploaded CSV file is empty or exceeds size limit."}, status=status.HTTP_400_BAD_REQUEST)
 
     job = AnalysisJob.objects.create(
+        user=request.user,
         company_name=company_name,
         filename=safe_name,
         lead_time_days=lead_time_days,
@@ -147,14 +148,14 @@ def upload_csv(request):
 @api_view(["GET"])
 @require_auth
 def list_jobs(request):
-    jobs = AnalysisJob.objects.all()[:25]
+    jobs = AnalysisJob.objects.filter(user=request.user)[:25]
     return Response([_serialize_job_summary(j) for j in jobs])
 
 
 @api_view(["GET", "DELETE"])
 @require_auth
 def job_detail(request, job_id):
-    job = get_object_or_404(AnalysisJob, id=job_id)
+    job = get_object_or_404(AnalysisJob, id=job_id, user=request.user)
     if request.method == "DELETE":
         job.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -171,7 +172,7 @@ def download_pdf_report(request, job_id):
             {"error": "PDF Executive Export requires Basic plan or higher.", "code": "TIER_LOCKED"},
             status=status.HTTP_403_FORBIDDEN,
         )
-    job = get_object_or_404(AnalysisJob, id=job_id)
+    job = get_object_or_404(AnalysisJob, id=job_id, user=request.user)
     if job.status != "completed":
         return Response({"error": "Report is not ready yet."}, status=status.HTTP_400_BAD_REQUEST)
     data = _serialize_job_detail(job)
@@ -184,7 +185,7 @@ def download_pdf_report(request, job_id):
 @api_view(["GET"])
 @require_auth
 def export_forecast_csv(request, job_id):
-    job = get_object_or_404(AnalysisJob, id=job_id)
+    job = get_object_or_404(AnalysisJob, id=job_id, user=request.user)
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([

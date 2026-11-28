@@ -17,12 +17,11 @@ import {
   Scale,
   ChevronLeft,
   ChevronRight,
-  Plug,
-  Code2,
-  Bot,
   X,
   Gift,
   ChevronDown,
+  Settings,
+  ShoppingCart,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { UsageQuotaWidget } from "./ui/TierComponents";
@@ -30,61 +29,34 @@ import BrandMark from "./BrandMark";
 
 const NAV_GROUPS = [
   {
-    title: "Main",
+    title: "Overview & Forecasting",
     items: [
-      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { id: "sales-dashboard", label: "Sales Dashboard", icon: TrendingUp },
+      { id: "dashboard", label: "Overview", icon: LayoutDashboard },
+      { id: "sales-forecast", label: "Sales Forecast", icon: TrendingUp },
+      { id: "analytics", label: "Analytics", icon: BarChart3 },
     ],
   },
   {
-    title: "Inventory",
+    title: "Inventory & Supply",
     items: [
       { id: "products", label: "Products", icon: Package },
-      { id: "expired-products", label: "Expired Products", icon: Clock },
-      { id: "low-stocks", label: "Low Stocks", icon: AlertTriangle },
-      { id: "categories", label: "Category", icon: Tags },
-      { id: "sub-categories", label: "Sub Category", icon: Layers },
-      { id: "upload", label: "Upload CSV", icon: UploadCloud },
+      { id: "inventory", label: "Inventory", icon: Boxes },
+      { id: "replenishment", label: "Replenishment", icon: ShoppingCart },
     ],
   },
   {
-    title: "Stock",
+    title: "Workspace",
     items: [
-      { id: "manage-stock", label: "Manage Stock", icon: Boxes },
-      { id: "stock-adjustment", label: "Stock Adjustment", icon: SlidersHorizontal },
+      { id: "upload", label: "Data Management", icon: UploadCloud },
+      { id: "settings", label: "Settings", icon: Settings },
     ],
   },
   {
-    title: "Reports",
+    title: "Advanced & Reports",
     items: [
-      { id: "sales-report", label: "Sales Report", icon: BarChart3 },
-      { id: "purchase-report", label: "Purchase Report", icon: FileSpreadsheet },
+      { id: "policy", label: "Policy Benchmark", icon: Scale },
       { id: "report", label: "Inventory Report", icon: FileSpreadsheet },
-      { id: "invoice-report", label: "Invoice Report", icon: Receipt },
-      { id: "supplier-report", label: "Supplier Report", icon: Truck },
-      { id: "customer-report", label: "Customer Report", icon: Users },
-      { id: "product-report", label: "Product Report", icon: Package },
-      { id: "policy", label: "Purchase & Policy", icon: Scale },
-    ],
-  },
-  {
-    title: "Peoples",
-    items: [
-      { id: "suppliers", label: "Suppliers", icon: Truck },
-    ],
-  },
-  {
-    title: "Integrations",
-    items: [
-      { id: "coming:ERP Integrations", label: "ERP Integrations", icon: Plug },
-      { id: "coming:API & Webhooks", label: "API & Webhooks", icon: Code2 },
-      { id: "coming:AI Copilot Chat", label: "AI Copilot Chat", icon: Bot },
-    ],
-  },
-  {
-    title: "Affiliate",
-    items: [
-      { id: "referrals", label: "Referral & Affiliate Program", icon: Gift },
+      { id: "referrals", label: "Referrals", icon: Gift },
     ],
   },
 ];

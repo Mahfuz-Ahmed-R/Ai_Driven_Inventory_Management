@@ -1,4 +1,4 @@
-import { getStoredTokens, setStoredAuth, clearStoredAuth } from "../hooks/useAuth";
+import { getStoredTokens, refreshAccessToken } from "../hooks/useAuth";
 
 const ERROR_LOG_KEY = "dreams_client_error_logs";
 const MAX_LOGS = 40;
@@ -87,7 +87,7 @@ export async function apiRequest(
     }
 
     try {
-      const { access, refresh } = getStoredTokens();
+      const { access } = getStoredTokens();
       const reqHeaders = { ...headers };
       const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
       if (!isFormData && !reqHeaders["Content-Type"]) {
@@ -109,20 +109,11 @@ export async function apiRequest(
 
       let res = await fetch(url, fetchOpts);
 
-      if (res.status === 401 && refresh) {
-        const refreshRes = await fetch("/api/auth/refresh/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh }),
-          credentials: "include",
-        });
-        if (refreshRes.ok) {
-          const rData = await refreshRes.json();
-          setStoredAuth(rData);
-          reqHeaders.Authorization = `Bearer ${rData.access}`;
+      if (res.status === 401) {
+        const newAccess = await refreshAccessToken();
+        if (newAccess) {
+          reqHeaders.Authorization = `Bearer ${newAccess}`;
           res = await fetch(url, { ...fetchOpts, headers: reqHeaders });
-        } else {
-          clearStoredAuth();
         }
       }
 

@@ -12,6 +12,13 @@ class AnalysisJob(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="analysis_jobs",
+    )
     company_name = models.CharField(max_length=255, default="Demo Retail Co.")
     filename = models.CharField(max_length=255)
     lead_time_days = models.PositiveIntegerField(default=4)
@@ -39,6 +46,13 @@ class UploadedDataset(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="uploaded_datasets",
+    )
     company_name = models.CharField(max_length=255, default="Partner Retail Corp")
     original_filename = models.CharField(max_length=255)
     file_size_bytes = models.PositiveBigIntegerField(default=0)

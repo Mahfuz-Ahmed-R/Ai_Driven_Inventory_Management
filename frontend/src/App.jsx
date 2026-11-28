@@ -5,6 +5,12 @@ import LandingPage from "./components/LandingPage";
 import { ComingSoonPage, MaintenancePage, ErrorPage, ErrorBoundary } from "./components/SystemPages";
 import UploadView from "./components/UploadView";
 import DashboardView from "./components/DashboardView";
+import SalesForecastView from "./components/SalesForecastView";
+import ProductsView from "./components/ProductsView";
+import InventoryView from "./components/InventoryView";
+import ReplenishmentView from "./components/ReplenishmentView";
+import AnalyticsView from "./components/AnalyticsView";
+import SettingsView from "./components/SettingsView";
 import InventoryReportView from "./components/InventoryReportView";
 import PolicyBenchmarkView from "./components/PolicyBenchmarkView";
 import InventoryExtraViews from "./components/InventoryExtraViews";
@@ -32,7 +38,6 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { apiRequest } from "./utils/apiClient";
 
 const INVENTORY_PAGES = new Set([
-  "products",
   "expired-products",
   "low-stocks",
   "categories",
@@ -66,6 +71,12 @@ const AUTH_FULLSCREEN_TABS = new Set([
 const WORKSPACE_TABS = new Set([
   "upload",
   "dashboard",
+  "sales-forecast",
+  "products",
+  "inventory",
+  "replenishment",
+  "analytics",
+  "settings",
   "sales-dashboard",
   "referrals",
   "report",
@@ -199,6 +210,7 @@ function AppContent() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       setJobs([]);
       setActiveJob(null);
@@ -212,7 +224,7 @@ function AppContent() {
         loadJobDetail(completed.id);
       }
     });
-  }, [user]);
+  }, [authLoading, user]);
 
   useKeyboardShortcuts({
     onOpenPalette: () => setPaletteOpen((v) => !v),
@@ -430,6 +442,11 @@ function AppContent() {
             {activeTab === "upload" && (
               <UploadView
                 onUploadSuccess={(id) => setWsJobId(id)}
+                onSelectJob={async (id) => {
+                  await loadJobDetail(id);
+                  navigateTo("dashboard");
+                }}
+                activeJobId={activeJob?.id}
                 activeWsJobId={wsJobId}
                 wsProgress={progress}
                 wsEvents={events}
@@ -444,6 +461,30 @@ function AppContent() {
               ) : (
                 <DashboardView key={activeJob?.id || "empty"} job={activeJob} erpData={erpData} onNavigate={navigateTo} darkMode={darkMode} user={user} />
               )
+            )}
+
+            {activeTab === "sales-forecast" && (
+              <SalesForecastView job={activeJob} searchQuery={debouncedSearch} darkMode={darkMode} onNavigate={navigateTo} />
+            )}
+
+            {activeTab === "products" && (
+              <ProductsView job={activeJob} erpData={erpData} searchQuery={debouncedSearch} darkMode={darkMode} onNavigate={navigateTo} />
+            )}
+
+            {activeTab === "inventory" && (
+              <InventoryView job={activeJob} searchQuery={debouncedSearch} darkMode={darkMode} onNavigate={navigateTo} />
+            )}
+
+            {activeTab === "replenishment" && (
+              <ReplenishmentView job={activeJob} searchQuery={debouncedSearch} darkMode={darkMode} onNavigate={navigateTo} />
+            )}
+
+            {activeTab === "analytics" && (
+              <AnalyticsView job={activeJob} darkMode={darkMode} onNavigate={navigateTo} />
+            )}
+
+            {activeTab === "settings" && (
+              <SettingsView user={user} />
             )}
 
             {activeTab === "sales-dashboard" && (

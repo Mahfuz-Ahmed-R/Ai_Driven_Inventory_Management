@@ -14,6 +14,9 @@ import {
   XCircle,
   ArrowRight,
   Lock,
+  Trash2,
+  Eye,
+  Database,
 } from "lucide-react";
 import { apiRequest } from "../utils/apiClient";
 import { getStoredTokens } from "../hooks/useAuth";
@@ -44,6 +47,8 @@ const MAX_FILE_BYTES = 200 * 1024 * 1024;
 
 export default function UploadView({
   onUploadSuccess,
+  onSelectJob,
+  activeJobId,
   activeWsJobId,
   wsProgress,
   wsEvents,
@@ -79,6 +84,48 @@ export default function UploadView({
   const [inspection, setInspection] = useState(null);
   const [editableMapping, setEditableMapping] = useState({});
   const [previewTab, setPreviewTab] = useState("standardized");
+  const [datasets, setDatasets] = useState([]);
+  const [datasetsLoading, setDatasetsLoading] = useState(true);
+
+  const loadDatasets = async () => {
+    setDatasetsLoading(true);
+    try {
+      const list = await apiRequest("/api/ingestion/datasets/", { retries: 1 });
+      setDatasets(Array.isArray(list) ? list : []);
+    } catch {
+      // ignore if offline
+    } finally {
+      setDatasetsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDatasets();
+  }, [activeWsJobId]);
+
+  const handleInspectStoredDataset = async (datasetId) => {
+    try {
+      const detail = await apiRequest(`/api/ingestion/${datasetId}/`);
+      setInspection(detail);
+      setEditableMapping(detail.column_mapping || {});
+      setPreviewTab(detail.standardized_preview?.length ? "standardized" : "raw");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setUploadError(err.message || "Failed to load dataset details.");
+    }
+  };
+
+  const handleDeleteDataset = async (datasetId) => {
+    try {
+      await apiRequest(`/api/ingestion/${datasetId}/`, { method: "DELETE" });
+      setDatasets((prev) => prev.filter((d) => d.dataset_id !== datasetId));
+      if (inspection?.dataset_id === datasetId) {
+        setInspection(null);
+      }
+    } catch (err) {
+      setUploadError(err.message || "Failed to delete dataset.");
+    }
+  };
 
   const handleFileSelected = (selected) => {
     if (!selected) return;
@@ -720,6 +767,131 @@ export default function UploadView({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Uploaded Datasets Management Table */}
+      <div className="bg-white dark:bg-[#1E222D] rounded-[8px] border border-zinc-200 dark:border-slate-700/70 p-4 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-[#0F766E] dark:text-[#14B8A6]" />
+            <div>
+              <h2 className="text-sm font-bold text-zinc-900 dark:text-white">Uploaded Datasets</h2>
+              <p className="text-xs text-zinc-500 dark:text-slate-400">
+                Inspect, preview, or manage your uploaded sales CSV files
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] text-zinc-500 dark:text-slate-400">
+            {datasets.length} dataset{datasets.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {datasetsLoading ? (
+          <div className="py-8 text-center text-xs text-zinc-500">Loading uploaded datasets...</div>
+        ) : datasets.length === 0 ? (
+          <div className="py-8 text-center text-xs text-zinc-500 dark:text-slate-400">
+            No datasets uploaded yet. Upload a sales CSV above to get started.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-zinc-200 dark:border-slate-700 text-[11px] uppercase text-zinc-500 dark:text-slate-400">
+                  <th className="py-2.5 pr-3">Filename</th>
+                  <th className="py-2.5 pr-3">Upload Date</th>
+                  <th className="py-2.5 pr-3 text-right">Records</th>
+                  <th className="py-2.5 pr-3 text-right">Products</th>
+                  <th className="py-2.5 pr-3">Date Range</th>
+                  <th className="py-2.5 pr-3">Classification</th>
+                  <th className="py-2.5 pr-3 text-right">Quality</th>
+                  <th className="py-2.5 pr-3">Status</th>
+                  <th className="py-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-slate-800">
+                {datasets.map((ds) => {
+                  const prof = ds.profile || {};
+                  const valRep = ds.validation_report || {};
+                  const dateRangeStr =
+                    valRep.date_min && valRep.date_max
+                      ? `${valRep.date_min} → ${valRep.date_max}`
+                      : "—";
+                  const isActiveJob = activeJobId && ds.analysis_job_id === activeJobId;
+                  return (
+                    <tr key={ds.dataset_id} className="hover:bg-zinc-50/70 dark:hover:bg-slate-800/30">
+                      <td className="py-2.5 pr-3 font-semibold text-zinc-900 dark:text-white">
+                        {ds.filename}
+                        {isActiveJob && (
+                          <span className="ml-2 px-1.5 py-0.5 rounded bg-[#0F766E]/15 text-[#0F766E] dark:text-[#14B8A6] text-[10px]">
+                            Active
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3 text-zinc-500 dark:text-slate-400">
+                        {ds.created_at ? new Date(ds.created_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right tabular-nums">
+                        {(prof.row_count ?? valRep.total_rows ?? 0).toLocaleString()}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right tabular-nums">
+                        {valRep.unique_products ?? "—"}
+                      </td>
+                      <td className="py-2.5 pr-3 text-zinc-500 dark:text-slate-400 font-mono text-[11px]">
+                        {dateRangeStr}
+                      </td>
+                      <td className="py-2.5 pr-3">{ds.classification}</td>
+                      <td className="py-2.5 pr-3 text-right font-semibold tabular-nums">
+                        {ds.quality_score != null ? `${ds.quality_score}%` : "—"}
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            ds.status === "confirmed" || ds.status === "validated"
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : ds.status === "rejected"
+                              ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                              : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                          }`}
+                        >
+                          {ds.analysis_job_status || ds.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleInspectStoredDataset(ds.dataset_id)}
+                            title="Inspect dataset mapping & preview"
+                            className="p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-slate-800 text-zinc-600 dark:text-slate-300 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          {ds.analysis_job_id && ds.analysis_job_status === "completed" && onSelectJob && (
+                            <button
+                              type="button"
+                              onClick={() => onSelectJob(ds.analysis_job_id)}
+                              className="px-2 py-1 rounded bg-[#0F766E]/12 text-[#0F766E] dark:text-[#14B8A6] text-[11px] font-semibold hover:bg-[#0F766E]/20 cursor-pointer"
+                            >
+                              Load
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDataset(ds.dataset_id)}
+                            title="Delete dataset"
+                            className="p-1.5 rounded hover:bg-red-500/15 text-red-500 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

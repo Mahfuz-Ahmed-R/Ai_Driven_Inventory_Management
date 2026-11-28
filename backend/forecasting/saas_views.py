@@ -249,5 +249,5 @@ def bulk_jobs_delete_view(request):
     ids = request.data.get("ids") or []
     if not isinstance(ids, list) or not ids:
         return Response({"error": "Provide a non-empty list of job IDs."}, status=status.HTTP_400_BAD_REQUEST)
-    deleted_count, _ = AnalysisJob.objects.filter(id__in=ids).delete()
+    deleted_count, _ = AnalysisJob.objects.filter(id__in=ids, user=request.user).delete()
     return Response({"ok": True, "affected": deleted_count})

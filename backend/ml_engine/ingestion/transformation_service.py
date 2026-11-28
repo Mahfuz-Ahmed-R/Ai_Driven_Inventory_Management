@@ -165,6 +165,7 @@ class DataTransformationService:
             "date_end": max_date.strftime("%Y-%m-%d"),
             "categories": sorted(merged["category"].unique().tolist()),
             "has_real_stock": bool(stock_col is not None),
+            "has_real_price": bool(price_col is not None or rev_col is not None),
             "observed_days": int((merged["observation_status"] == "observed").sum()),
             "explicit_zero_days": int((merged["observation_status"] == "zero_sales").sum()),
             "missing_calendar_days": missing_calendar_days,

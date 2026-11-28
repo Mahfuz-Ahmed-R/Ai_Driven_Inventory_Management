@@ -130,6 +130,7 @@ def parse_and_validate_csv(file_bytes: bytes) -> tuple[pd.DataFrame, dict]:
         "date_end": max_date.strftime("%Y-%m-%d"),
         "categories": sorted(normalized["category"].unique().tolist()),
         "has_real_stock": bool(stock_col is not None),
+        "has_real_price": bool(price_col is not None),
     }
     return normalized, meta
 

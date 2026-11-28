@@ -321,3 +321,48 @@ class AuthFlowTests(TestCase):
             upgrade = self.client.post("/api/saas/upgrade/", {"plan_tier": "pro"}, format="json")
             self.assertEqual(upgrade.status_code, 200)
             self.assertEqual(upgrade.json()["plan_tier"], "pro")
+
+    @patch("ml_engine.ingestion.mapping_service.LLMColumnMappingService._call_gemini", side_effect=RuntimeError("offline test"))
+    def test_bearer_token_sets_request_user_on_ingestion_and_jobs(self, _mock_gemini):
+        user = User.objects.create_user(
+            username="beareruser",
+            email="bearer@example.com",
+            password="Password123",
+            is_active=True,
+        )
+        WorkspaceProfile.objects.create(
+            key=f"user:{user.id}",
+            user=user,
+            referral_code="TEST-BEARER-001",
+            onboarding_completed=True,
+        )
+        login_res = self.client.post(
+            "/api/auth/login/",
+            {"email": user.email, "password": "Password123"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+        access_token = login_res.json()["access"]
+
+        bearer_client = APIClient()
+        bearer_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+
+        datasets_res = bearer_client.get("/api/ingestion/datasets/")
+        self.assertEqual(datasets_res.status_code, 200)
+        self.assertEqual(datasets_res.json(), [])
+
+        jobs_res = bearer_client.get("/api/jobs/")
+        self.assertEqual(jobs_res.status_code, 200)
+        self.assertEqual(jobs_res.json(), [])
+
+        csv_bytes = b"date,product_id,quantity\n2026-01-01,SKU-1,5\n"
+        upload_res = bearer_client.post(
+            "/api/ingestion/upload/",
+            {"file": SimpleUploadedFile("sales.csv", csv_bytes, content_type="text/csv")},
+            format="multipart",
+        )
+        self.assertEqual(upload_res.status_code, 201)
+
+        datasets_after = bearer_client.get("/api/ingestion/datasets/")
+        self.assertEqual(datasets_after.status_code, 200)
+        self.assertEqual(len(datasets_after.json()), 1)

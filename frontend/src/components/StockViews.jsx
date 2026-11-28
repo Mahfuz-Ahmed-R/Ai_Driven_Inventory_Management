@@ -4,6 +4,8 @@ import { RECHARTS_TOOLTIP_PROPS } from "../utils/chartTheme";
 import { SlidersHorizontal, Boxes, Plus } from "lucide-react";
 import { erpRequest } from "../hooks/useErpData";
 import { AnimatedNumber } from "./ui/AnimatedNumber";
+import { usePagination, PaginationBar } from "./ui/Pagination";
+import DateRangePicker, { normalizeDateString } from "./ui/DateRangePicker";
 import { useSaas } from "../context/SaasContext";
 
 const CARD = "bg-white dark:bg-[#1E222D] rounded-[8px] border border-zinc-200 dark:border-slate-700/70";
@@ -22,6 +24,7 @@ export default function StockViews({ page, job, erpData, refreshErpData, searchQ
   const [simSafetyMult, setSimSafetyMult] = useState(1.65);
   const [warehouseFilter, setWarehouseFilter] = useState("All");
   const [storeFilter, setStoreFilter] = useState("All");
+  const [dateRange, setDateRange] = useState({ from: "", to: "" });
 
   const gridStroke = darkMode ? "#27272A" : "#E4E4E7";
   const q = (searchQuery || "").toLowerCase();
@@ -38,6 +41,29 @@ export default function StockViews({ page, job, erpData, refreshErpData, searchQ
   const adjustedOrder = sampleSku
     ? Math.max(0, Math.ceil((sampleSku.avg_daily_velocity || 2.5) * (simLeadTime + 14) + simSafetyMult * 3 * Math.sqrt(simLeadTime) - sampleSku.current_stock))
     : 0;
+
+  const stockRows = useMemo(() => {
+    const base = page === "stock-adjustment"
+      ? adjustments
+      : filteredSkus.map((s, idx) => ({
+          id: s.sku,
+          warehouse: s.warehouse || (warehouses[idx % Math.max(1, warehouses.length)]?.name || "Lavish Warehouse"),
+          store: s.store_id || (stores[idx % Math.max(1, stores.length)]?.name || "Electro Mart"),
+          product: s.product_name,
+          date: "24 Dec 2024",
+          person: warehouses[idx % Math.max(1, warehouses.length)]?.contact || "Manager",
+          qty: s.current_stock,
+        }));
+    if (!dateRange.from && !dateRange.to) return base;
+    return base.filter((row) => {
+      const d = normalizeDateString(row.date);
+      if (dateRange.from && (!d || d < dateRange.from)) return false;
+      if (dateRange.to && (!d || d > dateRange.to)) return false;
+      return true;
+    });
+  }, [page, adjustments, filteredSkus, warehouses, stores, dateRange]);
+
+  const stockPager = usePagination(stockRows, 10, [page, warehouseFilter, storeFilter, q, dateRange]);
 
   if (skus.length === 0 && adjustments.length === 0) {
     return (
@@ -120,6 +146,7 @@ export default function StockViews({ page, job, erpData, refreshErpData, searchQ
             <option value="All">All Stores</option>
             {stores.map((s) => <option key={s.id}>{s.name}</option>)}
           </select>
+          <DateRangePicker value={dateRange} onChange={setDateRange} label="Stock Date" />
         </div>
         {page === "stock-adjustment" && (
           <button
@@ -144,52 +171,53 @@ export default function StockViews({ page, job, erpData, refreshErpData, searchQ
         )}
       </div>
 
-      <div className={`${CARD} overflow-x-auto`}>
-        <table className="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr>
-              <th className={TH}>Warehouse</th>
-              <th className={TH}>Store</th>
-              <th className={TH}>Product Name</th>
-              <th className={TH}>Date</th>
-              <th className={TH}>Person</th>
-              <th className={`${TH} text-right`}>Qty</th>
-              {page === "stock-adjustment" && <th className={TH}>Adjustment Type</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {(page === "stock-adjustment" ? adjustments : filteredSkus.map((s, idx) => ({
-              id: s.sku,
-              warehouse: s.warehouse || (warehouses[idx % Math.max(1, warehouses.length)]?.name || "Lavish Warehouse"),
-              store: s.store_id || (stores[idx % Math.max(1, stores.length)]?.name || "Electro Mart"),
-              product: s.product_name,
-              date: "24 Dec 2024",
-              person: warehouses[idx % Math.max(1, warehouses.length)]?.contact || "Manager",
-              qty: s.current_stock,
-            }))).map((row) => (
-              <tr key={row.id}>
-                <td className="py-3 px-4 font-medium">{row.warehouse}</td>
-                <td className="py-3 px-4 text-zinc-500">{row.store}</td>
-                <td className="py-3 px-4 font-bold">
-                  <div className="flex items-center gap-2">
-                    <Boxes className="w-3.5 h-3.5 text-[#0E9384] shrink-0" />
-                    <span>{row.product}</span>
-                  </div>
-                </td>
-                <td className="py-3 px-4 text-zinc-500">{row.date}</td>
-                <td className="py-3 px-4 text-zinc-500">{row.person}</td>
-                <td className="py-3 px-4 text-right font-bold">{row.qty}</td>
-                {page === "stock-adjustment" && (
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-0.5 rounded-[5px] text-[10px] font-bold ${row.type?.includes("+") ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>
-                      {row.type}
-                    </span>
-                  </td>
-                )}
+      <div className={`${CARD} overflow-hidden`}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr>
+                <th className={TH}>Warehouse</th>
+                <th className={TH}>Store</th>
+                <th className={TH}>Product Name</th>
+                <th className={TH}>Date</th>
+                <th className={TH}>Person</th>
+                <th className={`${TH} text-right`}>Qty</th>
+                {page === "stock-adjustment" && <th className={TH}>Adjustment Type</th>}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {stockPager.pagedItems.map((row) => (
+                <tr key={row.id}>
+                  <td className="py-3 px-4 font-medium">{row.warehouse}</td>
+                  <td className="py-3 px-4 text-zinc-500">{row.store}</td>
+                  <td className="py-3 px-4 font-bold">
+                    <div className="flex items-center gap-2">
+                      <Boxes className="w-3.5 h-3.5 text-[#0E9384] shrink-0" />
+                      <span>{row.product}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-zinc-500">{row.date}</td>
+                  <td className="py-3 px-4 text-zinc-500">{row.person}</td>
+                  <td className="py-3 px-4 text-right font-bold">{row.qty}</td>
+                  {page === "stock-adjustment" && (
+                    <td className="py-3 px-4">
+                      <span className={`px-2 py-0.5 rounded-[5px] text-[10px] font-bold ${row.type?.includes("+") ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}`}>
+                        {row.type}
+                      </span>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <PaginationBar
+          page={stockPager.safePage}
+          totalPages={stockPager.totalPages}
+          totalItems={stockPager.totalItems}
+          pageSize={10}
+          onPageChange={stockPager.setPage}
+        />
       </div>
     </div>
   );

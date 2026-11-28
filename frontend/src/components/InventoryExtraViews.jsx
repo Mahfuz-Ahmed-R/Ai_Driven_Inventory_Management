@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { erpRequest } from "../hooks/useErpData";
 import DataTable from "./ui/DataTable";
+import { paginateItems, PaginationBar } from "./ui/Pagination";
+import DateRangePicker, { normalizeDateString } from "./ui/DateRangePicker";
 import { useConfirm } from "./ui/ConfirmDialog";
 import { useToast } from "./ui/ToastProvider";
 import { useAutosave } from "../hooks/useAutosave";
@@ -73,6 +75,12 @@ export default function InventoryExtraViews({
   const [brandFilter, setBrandFilter] = useState("All");
   const [lowStockTab, setLowStockTab] = useState("low");
   const [warehouseFilter, setWarehouseFilter] = useState("All");
+  const [expDateRange, setExpDateRange] = useState({ from: "", to: "" });
+  const [listPage, setListPage] = useState(1);
+
+  useEffect(() => {
+    setListPage(1);
+  }, [page, searchQuery, lowStockTab, warehouseFilter, expDateRange]);
 
   const categories = erpData?.categories || [];
   const subCategories = erpData?.sub_categories || [];
@@ -298,7 +306,7 @@ export default function InventoryExtraViews({
             { key: "category", label: "Category", options: cats },
             { key: "brand", label: "Brand", options: brs, accessor: (s) => s.brand || "Freshmart" },
           ]}
-          dateRangeConfig={isErpCatalog ? { key: "mfg_date", label: "Mfg Date" } : null}
+          dateRangeConfig={allProducts.some((p) => p.mfg_date) ? { key: "mfg_date", label: "Mfg Date" } : null}
           selectable={isErpCatalog}
           exportFilename="products_catalog.csv"
           bulkActions={
@@ -358,17 +366,29 @@ export default function InventoryExtraViews({
         </div>
       );
     }
-    const expiredCount = filteredProducts.filter((_, i) => i % 3 === 0).length;
-    const expiringCount = filteredProducts.length - expiredCount;
+    const expiredFiltered = filteredProducts.filter((s) => {
+      if (!expDateRange.from && !expDateRange.to) return true;
+      const d = normalizeDateString(s.exp_date || "2026-11-20");
+      if (expDateRange.from && (!d || d < expDateRange.from)) return false;
+      if (expDateRange.to && (!d || d > expDateRange.to)) return false;
+      return true;
+    });
+    const expiredCount = expiredFiltered.filter((_, i) => i % 3 === 0).length;
+    const expiringCount = expiredFiltered.length - expiredCount;
     const pieData = [
       { name: "Expired", value: expiredCount },
       { name: "Expiring Soon", value: expiringCount },
     ];
     return (
       <div className="space-y-5">
-        <div>
-          <h1 className="text-xl font-bold text-zinc-950 dark:text-white">Expired Products</h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor manufactured & expiry dates across warehouse inventory</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-zinc-950 dark:text-white">Expired Products</h1>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor manufactured & expiry dates across warehouse inventory</p>
+          </div>
+          <div className="px-2 py-1 rounded-[8px] bg-white dark:bg-[#1E222D] border border-zinc-200 dark:border-slate-700">
+            <DateRangePicker value={expDateRange} onChange={setExpDateRange} label="Expiry Date" />
+          </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className={`lg:col-span-4 ${CARD} p-5`}>
@@ -390,7 +410,7 @@ export default function InventoryExtraViews({
             <h2 className="text-sm font-bold mb-2">Stock At Expiry Risk by SKU</h2>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={filteredProducts.slice(0, 8)}>
+                <BarChart data={expiredFiltered.slice(0, 8)}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                   <XAxis dataKey="sku" tick={{ fontSize: 10, fill: "#71717A" }} />
                   <YAxis tick={{ fontSize: 10, fill: "#71717A" }} />
@@ -401,36 +421,53 @@ export default function InventoryExtraViews({
             </div>
           </div>
         </div>
-        <div className={`${CARD} overflow-x-auto`}>
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr>
-                <th className={TH}>SKU</th>
-                <th className={TH}>Product</th>
-                <th className={TH}>Manufactured Date</th>
-                <th className={TH}>Expired Date</th>
-                <th className={`${TH} text-right`}>Stock</th>
-                <th className={TH}>Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {filteredProducts.map((s, idx) => (
-                <tr key={s.sku}>
-                  <td className="py-3 px-4 font-bold">{s.sku}</td>
-                  <td className="py-3 px-4 font-medium">{s.product_name}</td>
-                  <td className="py-3 px-4 text-zinc-500">{s.mfg_date || "2024-11-18"}</td>
-                  <td className="py-3 px-4 text-zinc-500">{s.exp_date || "2026-11-20"}</td>
-                  <td className="py-3 px-4 text-right font-semibold">{s.current_stock}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-0.5 rounded-[5px] text-[10px] font-bold ${idx % 3 === 0 ? "bg-red-500/15 text-red-500" : "bg-amber-500/15 text-amber-500"}`}>
-                      {idx % 3 === 0 ? "Expired" : "Expiring Soon"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {(() => {
+          const expiredPager = paginateItems(expiredFiltered, listPage, 10);
+          return (
+            <div className={`${CARD} overflow-hidden`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th className={TH}>SKU</th>
+                      <th className={TH}>Product</th>
+                      <th className={TH}>Manufactured Date</th>
+                      <th className={TH}>Expired Date</th>
+                      <th className={`${TH} text-right`}>Stock</th>
+                      <th className={TH}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {expiredPager.pagedItems.map((s, idx) => {
+                      const globalIdx = (expiredPager.safePage - 1) * 10 + idx;
+                      return (
+                        <tr key={s.sku}>
+                          <td className="py-3 px-4 font-bold">{s.sku}</td>
+                          <td className="py-3 px-4 font-medium">{s.product_name}</td>
+                          <td className="py-3 px-4 text-zinc-500">{s.mfg_date || "2024-11-18"}</td>
+                          <td className="py-3 px-4 text-zinc-500">{s.exp_date || "2026-11-20"}</td>
+                          <td className="py-3 px-4 text-right font-semibold">{s.current_stock}</td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2 py-0.5 rounded-[5px] text-[10px] font-bold ${globalIdx % 3 === 0 ? "bg-red-500/15 text-red-500" : "bg-amber-500/15 text-amber-500"}`}>
+                              {globalIdx % 3 === 0 ? "Expired" : "Expiring Soon"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={expiredPager.safePage}
+                totalPages={expiredPager.totalPages}
+                totalItems={expiredPager.totalItems}
+                pageSize={10}
+                onPageChange={setListPage}
+              />
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -506,43 +543,57 @@ export default function InventoryExtraViews({
           </select>
         </div>
 
-        <div className={`${CARD} overflow-x-auto`}>
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr>
-                <th className={TH}>Warehouse</th>
-                <th className={TH}>Store</th>
-                <th className={TH}>Product</th>
-                <th className={TH}>Category</th>
-                <th className={TH}>SKU</th>
-                <th className={`${TH} text-right`}>Qty</th>
-                <th className={`${TH} text-right`}>Days Left</th>
-                <th className={`${TH} text-right`}>Reorder Qty</th>
-                <th className={TH}>Reorder By</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {lowList.map((s) => (
-                <tr key={s.sku}>
-                  <td className="py-3 px-4 text-zinc-500">{s.warehouse || "Lavish Warehouse"}</td>
-                  <td className="py-3 px-4 text-zinc-500">{s.store_id || "Electro Mart"}</td>
-                  <td className="py-3 px-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />
-                      <span>{s.product_name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-zinc-500">{s.category}</td>
-                  <td className="py-3 px-4 font-bold">{s.sku}</td>
-                  <td className="py-3 px-4 text-right font-semibold">{s.current_stock}</td>
-                  <td className={`py-3 px-4 text-right font-bold ${(s.days_left ?? 10) <= 7 ? "text-red-500" : "text-amber-500"}`}>{s.days_left ?? 10}d</td>
-                  <td className="py-3 px-4 text-right font-bold">{s.suggested_order_qty || 45} units</td>
-                  <td className={`py-3 px-4 font-semibold ${s.reorder_by === "IMMEDIATE" ? "text-red-500" : "text-emerald-500"}`}>{s.reorder_by || "Within 7d"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {(() => {
+          const lowPager = paginateItems(lowList, listPage, 10);
+          return (
+            <div className={`${CARD} overflow-hidden`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th className={TH}>Warehouse</th>
+                      <th className={TH}>Store</th>
+                      <th className={TH}>Product</th>
+                      <th className={TH}>Category</th>
+                      <th className={TH}>SKU</th>
+                      <th className={`${TH} text-right`}>Qty</th>
+                      <th className={`${TH} text-right`}>Days Left</th>
+                      <th className={`${TH} text-right`}>Reorder Qty</th>
+                      <th className={TH}>Reorder By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {lowPager.pagedItems.map((s) => (
+                      <tr key={s.sku}>
+                        <td className="py-3 px-4 text-zinc-500">{s.warehouse || "Lavish Warehouse"}</td>
+                        <td className="py-3 px-4 text-zinc-500">{s.store_id || "Electro Mart"}</td>
+                        <td className="py-3 px-4 font-medium">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />
+                            <span>{s.product_name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-zinc-500">{s.category}</td>
+                        <td className="py-3 px-4 font-bold">{s.sku}</td>
+                        <td className="py-3 px-4 text-right font-semibold">{s.current_stock}</td>
+                        <td className={`py-3 px-4 text-right font-bold ${(s.days_left ?? 10) <= 7 ? "text-red-500" : "text-amber-500"}`}>{s.days_left ?? 10}d</td>
+                        <td className="py-3 px-4 text-right font-bold">{s.suggested_order_qty || 45} units</td>
+                        <td className={`py-3 px-4 font-semibold ${s.reorder_by === "IMMEDIATE" ? "text-red-500" : "text-emerald-500"}`}>{s.reorder_by || "Within 7d"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={lowPager.safePage}
+                totalPages={lowPager.totalPages}
+                totalItems={lowPager.totalItems}
+                pageSize={10}
+                onPageChange={setListPage}
+              />
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -648,51 +699,65 @@ export default function InventoryExtraViews({
               </div>
             </div>
 
-            <div className={`${CARD} overflow-x-auto`}>
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr>
-                    <th className={TH}>Category</th>
-                    <th className={TH}>SKUs</th>
-                    <th className={TH}>28D Demand (Units)</th>
-                    <th className={TH}>Demand Share</th>
-                    <th className={TH}>Projected Revenue</th>
-                    <th className={TH}>Revenue Share</th>
-                    <th className={TH}>On-Hand Stock</th>
-                    <th className={TH}>Avg Price</th>
-                    <th className={TH}>Critical SKUs</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {enriched.map((c) => (
-                    <tr key={c.category}>
-                      <td className="py-3 px-4 font-bold flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                        {c.category}
-                      </td>
-                      <td className="py-3 px-4">{c.sku_count}</td>
-                      <td className="py-3 px-4 font-semibold">{Number(c.demand_units).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-zinc-500">{c.demandShare}%</td>
-                      <td className="py-3 px-4 font-semibold">${Number(c.revenue).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-zinc-500">{c.revenueShare}%</td>
-                      <td className="py-3 px-4">{c.totalStock.toLocaleString()}</td>
-                      <td className="py-3 px-4">${c.avgPrice}</td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                            c.criticalCount > 0
-                              ? "bg-red-500/15 text-red-500"
-                              : "bg-emerald-500/15 text-emerald-500"
-                          }`}
-                        >
-                          {c.criticalCount}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {(() => {
+              const catPager = paginateItems(enriched, listPage, 10);
+              return (
+                <div className={`${CARD} overflow-hidden`}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr>
+                          <th className={TH}>Category</th>
+                          <th className={TH}>SKUs</th>
+                          <th className={TH}>28D Demand (Units)</th>
+                          <th className={TH}>Demand Share</th>
+                          <th className={TH}>Projected Revenue</th>
+                          <th className={TH}>Revenue Share</th>
+                          <th className={TH}>On-Hand Stock</th>
+                          <th className={TH}>Avg Price</th>
+                          <th className={TH}>Critical SKUs</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {catPager.pagedItems.map((c) => (
+                          <tr key={c.category}>
+                            <td className="py-3 px-4 font-bold flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                              {c.category}
+                            </td>
+                            <td className="py-3 px-4">{c.sku_count}</td>
+                            <td className="py-3 px-4 font-semibold">{Number(c.demand_units).toLocaleString()}</td>
+                            <td className="py-3 px-4 text-zinc-500">{c.demandShare}%</td>
+                            <td className="py-3 px-4 font-semibold">${Number(c.revenue).toLocaleString()}</td>
+                            <td className="py-3 px-4 text-zinc-500">{c.revenueShare}%</td>
+                            <td className="py-3 px-4">{c.totalStock.toLocaleString()}</td>
+                            <td className="py-3 px-4">${c.avgPrice}</td>
+                            <td className="py-3 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                  c.criticalCount > 0
+                                    ? "bg-red-500/15 text-red-500"
+                                    : "bg-emerald-500/15 text-emerald-500"
+                                }`}
+                              >
+                                {c.criticalCount}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <PaginationBar
+                    page={catPager.safePage}
+                    totalPages={catPager.totalPages}
+                    totalItems={catPager.totalItems}
+                    pageSize={10}
+                    onPageChange={setListPage}
+                  />
+                </div>
+              );
+            })()}
           </>
         ) : (
           <div className={`${CARD} p-8 text-center text-xs text-zinc-500 dark:text-zinc-400`}>
@@ -743,24 +808,38 @@ export default function InventoryExtraViews({
             </ResponsiveContainer>
           </div>
         </div>
-        <div className={`${CARD} overflow-x-auto`}>
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr><th className={TH}>Category Code</th><th className={TH}>Category</th><th className={TH}>Sub Category</th><th className={TH}>Description</th><th className={TH}>Status</th></tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {subCategories.map((s) => (
-                <tr key={s.code}>
-                  <td className="py-3 px-4 font-bold">{s.code}</td>
-                  <td className="py-3 px-4">{s.category}</td>
-                  <td className="py-3 px-4 font-semibold">{s.sub_category}</td>
-                  <td className="py-3 px-4 text-zinc-500">{s.description}</td>
-                  <td className="py-3 px-4"><StatusBadge status={s.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {(() => {
+          const subPager = paginateItems(subCategories, listPage, 10);
+          return (
+            <div className={`${CARD} overflow-hidden`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr><th className={TH}>Category Code</th><th className={TH}>Category</th><th className={TH}>Sub Category</th><th className={TH}>Description</th><th className={TH}>Status</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {subPager.pagedItems.map((s) => (
+                      <tr key={s.code}>
+                        <td className="py-3 px-4 font-bold">{s.code}</td>
+                        <td className="py-3 px-4">{s.category}</td>
+                        <td className="py-3 px-4 font-semibold">{s.sub_category}</td>
+                        <td className="py-3 px-4 text-zinc-500">{s.description}</td>
+                        <td className="py-3 px-4"><StatusBadge status={s.status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={subPager.safePage}
+                totalPages={subPager.totalPages}
+                totalItems={subPager.totalItems}
+                pageSize={10}
+                onPageChange={setListPage}
+              />
+            </div>
+          );
+        })()}
       </div>
     );
   }

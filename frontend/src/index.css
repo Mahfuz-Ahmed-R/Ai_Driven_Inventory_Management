@@ -7,6 +7,7 @@
 }
 
 :root {
+  color-scheme: light;
   --bg-canvas: #f7f6f2;
   --bg-surface: #ffffff;
   --bg-subtle: #efede7;
@@ -23,6 +24,7 @@
 }
 
 html.dark {
+  color-scheme: dark;
   --bg-canvas: #111318;
   --bg-surface: #181b22;
   --bg-subtle: #1e222b;
@@ -55,6 +57,10 @@ html:not(.dark) body {
   font-variant-numeric: tabular-nums;
 }
 
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
 /* Accessible keyboard focus ring */
 button:focus-visible,
 a:focus-visible,
@@ -83,6 +89,17 @@ textarea:focus-visible {
 .recharts-tooltip-item {
   padding-top: 2px !important;
   padding-bottom: 2px !important;
+}
+
+html,
+body,
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 .no-scrollbar::-webkit-scrollbar {

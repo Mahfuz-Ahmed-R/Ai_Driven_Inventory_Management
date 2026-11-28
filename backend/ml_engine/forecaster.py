@@ -166,12 +166,29 @@ def _evaluate_chronological_backtest(normalized_df: pd.DataFrame) -> dict:
     }
 
 
-def forecast_with_backtest(normalized_df: pd.DataFrame, horizon: int = HORIZON_DAYS) -> tuple[dict[str, dict], dict]:
+def get_supported_horizons(n_days: int) -> list[int]:
+    """Return forecast horizons supported by the available historical length."""
+    if n_days >= 60:
+        return [7, 14, 28, 60, 90]
+    if n_days >= 28:
+        return [7, 14, 28, 60]
+    if n_days >= 14:
+        return [7, 14, 28]
+    return [7, 14]
+
+
+def forecast_with_backtest(normalized_df: pd.DataFrame, horizon: int | None = None) -> tuple[dict[str, dict], dict]:
     """
     Run chronological backtest vs Seasonal-Naive, select winning model, refit on full history,
-    and generate 28-day forecasts per SKU.
+    and generate multi-horizon forecasts per SKU (up to 90 days when history supports it).
     """
+    n_days = int(pd.to_datetime(normalized_df["date"]).nunique())
+    supported_horizons = get_supported_horizons(n_days)
+    if horizon is None:
+        horizon = supported_horizons[-1]
+
     backtest = _evaluate_chronological_backtest(normalized_df)
+    backtest["supported_horizons"] = supported_horizons
     selected_model = backtest["selected_model"]
 
     feat_df = build_training_features(normalized_df)
@@ -204,9 +221,25 @@ def forecast_with_backtest(normalized_df: pd.DataFrame, horizon: int = HORIZON_D
             method = "Cold-Start Adaptive"
 
         hist_std = float(np.std(history[-28:])) if len(history) > 1 else 1.0
-        lower = [round(max(0.0, p - 1.28 * max(0.5, hist_std * 0.45)), 2) for p in preds]
-        upper = [round(p + 1.28 * max(0.5, hist_std * 0.45), 2) for p in preds]
+        # Uncertainty widens gently with horizon sqrt(step)
+        lower = []
+        upper = []
+        for idx, p in enumerate(preds):
+            spread = 1.28 * max(0.5, hist_std * 0.45) * (1.0 + 0.35 * np.sqrt(idx / 28.0))
+            lower.append(round(max(0.0, p - spread), 2))
+            upper.append(round(p + spread, 2))
 
+        hist_avg_daily = round(float(np.mean(history)), 2) if history else 0.0
+        # Demand trend: compare recent window vs previous equivalent window
+        comp_win = min(28, len(history) // 2)
+        if comp_win >= 3:
+            recent_avg = float(np.mean(history[-comp_win:]))
+            prev_avg = float(np.mean(history[-2 * comp_win:-comp_win]))
+            demand_trend_pct = round(((recent_avg - prev_avg) / prev_avg) * 100.0, 1) if prev_avg > 0 else (100.0 if recent_avg > 0 else 0.0)
+        else:
+            demand_trend_pct = 0.0
+
+        preds_28 = preds[:28]
         results[sku] = {
             "sku": sku,
             "product_name": str(grp["product_name"].iloc[-1]),
@@ -215,14 +248,16 @@ def forecast_with_backtest(normalized_df: pd.DataFrame, horizon: int = HORIZON_D
             "price": float(grp["price"].iloc[-1]),
             "current_stock": float(grp["current_stock"].iloc[-1]),
             "method": method,
-            "history_dates": hist_dates[-28:],
-            "history_sales": [round(float(v), 2) for v in history[-28:]],
+            "history_dates": hist_dates[-180:],
+            "history_sales": [round(float(v), 2) for v in history[-180:]],
+            "hist_avg_daily": hist_avg_daily,
+            "demand_trend_pct": demand_trend_pct,
             "forecast_dates": [d.strftime("%Y-%m-%d") for d in future_dates],
             "forecast_sales": preds,
             "forecast_lower": lower,
             "forecast_upper": upper,
-            "avg_daily_velocity": round(float(np.mean(preds)), 2),
-            "total_28d_demand": round(float(np.sum(preds)), 1),
+            "avg_daily_velocity": round(float(np.mean(preds_28)), 2) if preds_28 else 0.0,
+            "total_28d_demand": round(float(np.sum(preds_28)), 1),
         }
 
     return results, backtest

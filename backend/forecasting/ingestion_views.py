@@ -40,6 +40,10 @@ def _build_standardized_preview(raw_df, resolved_mapping: dict[str, str]) -> tup
 
 
 def _serialize_dataset_response(ds: UploadedDataset, standardized_preview: list[dict] | None = None, trans_meta: dict | None = None) -> dict:
+    val_rep = ds.validation_report or {}
+    total_rows = max(1, int(val_rep.get("total_rows") or (ds.dataset_profile or {}).get("row_count") or 1))
+    valid_rows = int(val_rep.get("valid_rows") or total_rows)
+    quality_score = round(min(100.0, max(0.0, (valid_rows / total_rows) * 100.0)), 1) if val_rep else None
     return {
         "dataset_id": str(ds.id),
         "filename": ds.original_filename,
@@ -51,8 +55,13 @@ def _serialize_dataset_response(ds: UploadedDataset, standardized_preview: list[
         "analysis_source": ds.analysis_source,
         "classification_result": ds.classification_payload,
         "column_mapping": ds.column_mapping,
-        "validation_report": ds.validation_report,
+        "validation_report": val_rep,
         "profile": ds.dataset_profile,
+        "quality_score": quality_score,
+        "analysis_job_id": str(ds.analysis_job_id) if ds.analysis_job_id else None,
+        "analysis_job_status": ds.analysis_job.status if ds.analysis_job else None,
+        "created_at": ds.created_at.isoformat(),
+        "updated_at": ds.updated_at.isoformat(),
         "standardized_preview": standardized_preview if standardized_preview is not None else [],
         "transformation_meta": trans_meta if trans_meta is not None else {},
     }
@@ -120,6 +129,7 @@ def inspect_uploaded_csv(request):
 
     ds = UploadedDataset.objects.create(
         id=dataset_id,
+        user=request.user,
         company_name=company_name,
         original_filename=stored["safe_filename"],
         file_size_bytes=stored["file_size_bytes"],
@@ -145,7 +155,7 @@ def inspect_uploaded_csv(request):
 @require_auth
 def revalidate_dataset_mapping(request, dataset_id):
     """Step 2: Apply user-edited column mapping, re-run backend checks & Python validation."""
-    ds = get_object_or_404(UploadedDataset, id=dataset_id)
+    ds = get_object_or_404(UploadedDataset, id=dataset_id, user=request.user)
     user_mapping = request.data.get("column_mapping")
     if not isinstance(user_mapping, dict):
         return Response({"error": "column_mapping must be an object mapping target_field -> source_column."}, status=status.HTTP_400_BAD_REQUEST)
@@ -211,7 +221,7 @@ def confirm_and_run_forecast(request, dataset_id):
         return blocked
 
     tier_cfg = TIER_CONFIGS.get(profile.plan_tier, TIER_CONFIGS["free"])
-    if AnalysisJob.objects.count() >= tier_cfg["max_jobs"]:
+    if AnalysisJob.objects.filter(user=request.user).count() >= tier_cfg["max_jobs"]:
         return Response(
             {
                 "error": f"Forecast job limit ({tier_cfg['max_jobs']}) reached for {tier_cfg['label']} plan. Upgrade or delete old jobs.",
@@ -220,7 +230,7 @@ def confirm_and_run_forecast(request, dataset_id):
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    ds = get_object_or_404(UploadedDataset, id=dataset_id)
+    ds = get_object_or_404(UploadedDataset, id=dataset_id, user=request.user)
     if ds.status == "rejected" or not (ds.classification_payload or {}).get("accepted"):
         return Response(
             {"error": (ds.classification_payload or {}).get("rejection_reason") or "Dataset was rejected and cannot be forecasted."},
@@ -253,6 +263,7 @@ def confirm_and_run_forecast(request, dataset_id):
     ds.status = "confirmed"
 
     job = AnalysisJob.objects.create(
+        user=request.user,
         company_name=company_name,
         filename=ds.original_filename,
         lead_time_days=lead_time_days,
@@ -269,3 +280,30 @@ def confirm_and_run_forecast(request, dataset_id):
     }
     launch_analysis_thread(str(job.id), standardized_df=forecaster_df, extra_meta=extra_meta)
     return Response({"job_id": str(job.id), "dataset_id": str(ds.id), "status": "pending"}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@require_auth
+def list_uploaded_datasets(request):
+    """List uploaded datasets belonging to the authenticated user."""
+    datasets = UploadedDataset.objects.filter(user=request.user).select_related("analysis_job")[:30]
+    return Response([_serialize_dataset_response(ds) for ds in datasets])
+
+
+@api_view(["GET", "DELETE"])
+@require_auth
+def dataset_detail(request, dataset_id):
+    """Inspect or delete a single uploaded dataset owned by the authenticated user."""
+    ds = get_object_or_404(UploadedDataset, id=dataset_id, user=request.user)
+    if request.method == "DELETE":
+        ds.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    std_preview: list[dict] = []
+    trans_meta: dict = {}
+    if ds.raw_file_path and ds.column_mapping:
+        try:
+            raw_df = CSVUploadService.read_raw_from_path(ds.raw_file_path)
+            std_preview, trans_meta = _build_standardized_preview(raw_df, ds.column_mapping)
+        except Exception:
+            pass
+    return Response(_serialize_dataset_response(ds, std_preview, trans_meta))

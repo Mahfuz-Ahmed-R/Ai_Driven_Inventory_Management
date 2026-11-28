@@ -9,7 +9,6 @@ import {
   ChevronRight,
   X,
   RotateCcw,
-  Calendar,
   Download,
   Trash2,
   Check,
@@ -17,6 +16,7 @@ import {
 import { useDebounce } from "../../hooks/useDebounce";
 import { TableSkeleton } from "./Skeleton";
 import { EmptyState, NoSearchResultsState, ErrorBanner } from "./StateViews";
+import DateRangePicker, { normalizeDateString } from "./DateRangePicker";
 
 /**
  * Reusable SaaS DataTable with:
@@ -151,7 +151,7 @@ export default function DataTable({
 
       if (dateRangeConfig && (dateRange.from || dateRange.to)) {
         const rawDate = dateRangeConfig.accessor ? dateRangeConfig.accessor(row) : row[dateRangeConfig.key];
-        const dateStr = rawDate ? String(rawDate).slice(0, 10) : "";
+        const dateStr = normalizeDateString(rawDate);
         if (dateRange.from && (!dateStr || dateStr < dateRange.from)) return false;
         if (dateRange.to && (!dateStr || dateStr > dateRange.to)) return false;
       }
@@ -315,24 +315,11 @@ export default function DataTable({
             })}
 
             {dateRangeConfig && (
-              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                <Calendar className="w-3.5 h-3.5 text-zinc-400 hidden sm:block" />
-                <input
-                  type="date"
-                  aria-label={`${dateRangeConfig.label || "Date"} from`}
-                  value={dateRange.from}
-                  onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
-                  className="px-2 py-1.5 text-xs rounded-[8px] bg-zinc-50 dark:bg-[#161922] border border-zinc-200 dark:border-slate-700 text-zinc-800 dark:text-slate-200"
-                />
-                <span className="text-zinc-400">-</span>
-                <input
-                  type="date"
-                  aria-label={`${dateRangeConfig.label || "Date"} to`}
-                  value={dateRange.to}
-                  onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
-                  className="px-2 py-1.5 text-xs rounded-[8px] bg-zinc-50 dark:bg-[#161922] border border-zinc-200 dark:border-slate-700 text-zinc-800 dark:text-slate-200"
-                />
-              </div>
+              <DateRangePicker
+                value={dateRange}
+                onChange={setDateRange}
+                label={dateRangeConfig.label || "Date"}
+              />
             )}
 
             {/* Column customizer */}

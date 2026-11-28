@@ -45,10 +45,46 @@ export function clearStoredAuth() {
     store.removeItem(USER_KEY);
   }
   localStorage.removeItem(REMEMBER_KEY);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("dreams:auth-cleared"));
+  }
+}
+
+let refreshPromise = null;
+
+export async function refreshAccessToken() {
+  if (refreshPromise) return refreshPromise;
+  const { refresh } = getStoredTokens();
+  if (!refresh) {
+    clearStoredAuth();
+    return null;
+  }
+  refreshPromise = (async () => {
+    try {
+      const refreshRes = await fetch("/api/auth/refresh/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+        credentials: "include",
+      });
+      if (refreshRes.ok) {
+        const rData = await refreshRes.json();
+        setStoredAuth(rData);
+        return rData.access || getStoredTokens().access || null;
+      }
+      clearStoredAuth();
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
 }
 
 export async function authFetch(url, options = {}) {
-  const { access, refresh } = getStoredTokens();
+  const { access } = getStoredTokens();
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
@@ -56,20 +92,11 @@ export async function authFetch(url, options = {}) {
   if (access) headers.Authorization = `Bearer ${access}`;
 
   let res = await fetch(url, { ...options, headers, credentials: "include" });
-  if (res.status === 401 && refresh) {
-    const refreshRes = await fetch("/api/auth/refresh/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
-      credentials: "include",
-    });
-    if (refreshRes.ok) {
-      const rData = await refreshRes.json();
-      setStoredAuth(rData);
-      headers.Authorization = `Bearer ${rData.access}`;
+  if (res.status === 401) {
+    const newAccess = await refreshAccessToken();
+    if (newAccess) {
+      headers.Authorization = `Bearer ${newAccess}`;
       res = await fetch(url, { ...options, headers, credentials: "include" });
-    } else {
-      clearStoredAuth();
     }
   }
   return res;
@@ -88,8 +115,11 @@ export function useAuth() {
   const [authLoading, setAuthLoading] = useState(true);
 
   const checkSession = useCallback(async () => {
-    const { access } = getStoredTokens();
-    if (!access) {
+    const { access, refresh } = getStoredTokens();
+    if (!access && !refresh) {
+      clearStoredAuth();
+      setUser(null);
+      setSession(null);
       setAuthLoading(false);
       return null;
     }
@@ -116,6 +146,15 @@ export function useAuth() {
   useEffect(() => {
     checkSession();
   }, [checkSession]);
+
+  useEffect(() => {
+    const onAuthCleared = () => {
+      setUser(null);
+      setSession(null);
+    };
+    window.addEventListener("dreams:auth-cleared", onAuthCleared);
+    return () => window.removeEventListener("dreams:auth-cleared", onAuthCleared);
+  }, []);
 
   const saveAuthSession = useCallback((data) => {
     setStoredAuth(data);

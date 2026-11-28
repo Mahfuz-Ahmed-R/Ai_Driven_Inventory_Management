@@ -31,6 +31,7 @@ import { ComingSoonPage, MaintenancePage, ErrorPage } from "./SystemPages";
 import { erpRequest } from "../hooks/useErpData";
 import { authFetch } from "../hooks/useAuth";
 import { AnimatedNumber } from "./ui/AnimatedNumber";
+import { usePagination, PaginationBar } from "./ui/Pagination";
 
 const CARD = "bg-white dark:bg-[#1E222D] rounded-[8px] border border-zinc-200 dark:border-slate-700/70";
 const TH = "py-3 px-4 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-[11px] font-semibold uppercase text-zinc-500 dark:text-zinc-400";
@@ -67,6 +68,7 @@ export function SalesDashboardView({ job, erpData, darkMode }) {
     amount: Number(o.grand_total || 0),
     status: o.status,
   }));
+  const txPager = usePagination(recentOrders, 10);
 
   if (skus.length === 0 && recentOrders.length === 0) {
     return (
@@ -117,7 +119,7 @@ export function SalesDashboardView({ job, erpData, darkMode }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {recentOrders.map((tx) => (
+                {txPager.pagedItems.map((tx) => (
                   <tr key={tx.id}>
                     <td className="py-3 px-4 font-bold">{tx.id}</td>
                     <td className="py-3 px-4">
@@ -139,6 +141,13 @@ export function SalesDashboardView({ job, erpData, darkMode }) {
               </tbody>
             </table>
           </div>
+          <PaginationBar
+            page={txPager.safePage}
+            totalPages={txPager.totalPages}
+            totalItems={txPager.totalItems}
+            pageSize={10}
+            onPageChange={txPager.setPage}
+          />
         </div>
 
         <div className={`lg:col-span-5 ${CARD} p-5 space-y-3`}>

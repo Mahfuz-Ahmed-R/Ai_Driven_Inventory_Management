@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -13,11 +13,17 @@ import {
 import { RECHARTS_TOOLTIP_PROPS } from "../utils/chartTheme";
 import { Package, AlertTriangle, Building2, SlidersHorizontal, Sparkles, Lock } from "lucide-react";
 import { useSaas } from "../context/SaasContext";
+import { paginateItems, PaginationBar } from "./ui/Pagination";
 
 export default function DreamsScreensView({ page, job, searchQuery, darkMode, onNavigate }) {
   const { saasState } = useSaas();
   const defaultLeadTime = Number(saasState?.onboarding?.data?.default_lead_time) || 4;
   const [lowStockTab, setLowStockTab] = useState("low");
+  const [listPage, setListPage] = useState(1);
+
+  useEffect(() => {
+    setListPage(1);
+  }, [page, searchQuery, lowStockTab]);
   const [simLeadTime, setSimLeadTime] = useState(job?.lead_time_days || defaultLeadTime);
   const [simSafetyMult, setSimSafetyMult] = useState(1.65);
   const [authEmail, setAuthEmail] = useState("admin@freshmart.ai");
@@ -130,38 +136,52 @@ export default function DreamsScreensView({ page, job, searchQuery, darkMode, on
           </div>
           <span className="text-xs font-semibold text-zinc-500">{filteredSkus.length} Products</span>
         </div>
-        <div className="bg-white dark:bg-[#141417] rounded-[8px] border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-[11px] uppercase text-zinc-500">
-                <th className="py-3 px-4">SKU</th>
-                <th className="py-3 px-4">Product</th>
-                <th className="py-3 px-4">Category</th>
-                <th className="py-3 px-4 text-right">Price</th>
-                <th className="py-3 px-4 text-right">Current Stock</th>
-                <th className="py-3 px-4 text-right">28D Demand</th>
-                <th className="py-3 px-4">Model</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {filteredSkus.map((s) => (
-                <tr key={s.sku} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
-                  <td className="py-3 px-4 font-bold text-zinc-950 dark:text-white">{s.sku}</td>
-                  <td className="py-3 px-4 font-medium text-zinc-800 dark:text-zinc-200">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-3.5 h-3.5 text-zinc-400 shrink-0" /> {s.product_name}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-zinc-500">{s.category}</td>
-                  <td className="py-3 px-4 text-right">${s.price.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right font-semibold">{s.current_stock}</td>
-                  <td className="py-3 px-4 text-right font-bold">{s.total_28d_demand}</td>
-                  <td className="py-3 px-4 text-zinc-500">{s.method}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {(() => {
+          const prodPager = paginateItems(filteredSkus, listPage, 10);
+          return (
+            <div className="bg-white dark:bg-[#141417] rounded-[8px] border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-[11px] uppercase text-zinc-500">
+                      <th className="py-3 px-4">SKU</th>
+                      <th className="py-3 px-4">Product</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4 text-right">Price</th>
+                      <th className="py-3 px-4 text-right">Current Stock</th>
+                      <th className="py-3 px-4 text-right">28D Demand</th>
+                      <th className="py-3 px-4">Model</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {prodPager.pagedItems.map((s) => (
+                      <tr key={s.sku} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
+                        <td className="py-3 px-4 font-bold text-zinc-950 dark:text-white">{s.sku}</td>
+                        <td className="py-3 px-4 font-medium text-zinc-800 dark:text-zinc-200">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5 text-zinc-400 shrink-0" /> {s.product_name}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-zinc-500">{s.category}</td>
+                        <td className="py-3 px-4 text-right">${s.price.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-right font-semibold">{s.current_stock}</td>
+                        <td className="py-3 px-4 text-right font-bold">{s.total_28d_demand}</td>
+                        <td className="py-3 px-4 text-zinc-500">{s.method}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={prodPager.safePage}
+                totalPages={prodPager.totalPages}
+                totalItems={prodPager.totalItems}
+                pageSize={10}
+                onPageChange={setListPage}
+              />
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -192,50 +212,64 @@ export default function DreamsScreensView({ page, job, searchQuery, darkMode, on
             </button>
           ))}
         </div>
-        <div className="bg-white dark:bg-[#141417] rounded-[8px] border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-[11px] uppercase text-zinc-500">
-                <th className="py-3 px-4">SKU</th>
-                <th className="py-3 px-4">Product</th>
-                <th className="py-3 px-4 text-right">Stock</th>
-                <th className="py-3 px-4 text-right">Days Left</th>
-                <th className="py-3 px-4">Run-Out Date</th>
-                <th className="py-3 px-4 text-right">Reorder Qty</th>
-                <th className="py-3 px-4">Reorder By</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {lowList.map((s) => (
-                <tr key={s.sku}>
-                  <td className="py-3 px-4 font-bold">{s.sku}</td>
-                  <td className="py-3 px-4 font-medium">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />{" "}
-                      <span>{s.product_name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-right">{s.current_stock}</td>
-                  <td className={`py-3 px-4 text-right font-bold ${s.days_left <= 7 ? "text-red-500" : "text-amber-500"}`}>
-                    {s.days_left}d
-                  </td>
-                  <td className="py-3 px-4">{s.run_out_date}</td>
-                  <td className="py-3 px-4 text-right font-bold">{s.suggested_order_qty} units</td>
-                  <td className={`py-3 px-4 font-semibold ${s.reorder_by === "IMMEDIATE" ? "text-red-500" : "text-emerald-500"}`}>
-                    {s.reorder_by}
-                  </td>
-                </tr>
-              ))}
-              {lowList.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="py-6 text-center text-zinc-500">
-                    No SKUs match this alert filter.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {(() => {
+          const lowPager = paginateItems(lowList, listPage, 10);
+          return (
+            <div className="bg-white dark:bg-[#141417] rounded-[8px] border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-[11px] uppercase text-zinc-500">
+                      <th className="py-3 px-4">SKU</th>
+                      <th className="py-3 px-4">Product</th>
+                      <th className="py-3 px-4 text-right">Stock</th>
+                      <th className="py-3 px-4 text-right">Days Left</th>
+                      <th className="py-3 px-4">Run-Out Date</th>
+                      <th className="py-3 px-4 text-right">Reorder Qty</th>
+                      <th className="py-3 px-4">Reorder By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {lowPager.pagedItems.map((s) => (
+                      <tr key={s.sku}>
+                        <td className="py-3 px-4 font-bold">{s.sku}</td>
+                        <td className="py-3 px-4 font-medium">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${s.urgency === "critical" ? "text-red-500" : "text-amber-500"}`} />{" "}
+                            <span>{s.product_name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-right">{s.current_stock}</td>
+                        <td className={`py-3 px-4 text-right font-bold ${s.days_left <= 7 ? "text-red-500" : "text-amber-500"}`}>
+                          {s.days_left}d
+                        </td>
+                        <td className="py-3 px-4">{s.run_out_date}</td>
+                        <td className="py-3 px-4 text-right font-bold">{s.suggested_order_qty} units</td>
+                        <td className={`py-3 px-4 font-semibold ${s.reorder_by === "IMMEDIATE" ? "text-red-500" : "text-emerald-500"}`}>
+                          {s.reorder_by}
+                        </td>
+                      </tr>
+                    ))}
+                    {lowList.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-6 text-center text-zinc-500">
+                          No SKUs match this alert filter.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar
+                page={lowPager.safePage}
+                totalPages={lowPager.totalPages}
+                totalItems={lowPager.totalItems}
+                pageSize={10}
+                onPageChange={setListPage}
+              />
+            </div>
+          );
+        })()}
       </div>
     );
   }
